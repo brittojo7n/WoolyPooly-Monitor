@@ -62,6 +62,9 @@ web_modules/
 # Output of 'npm pack'
 *.tgz
 
+# Local telemetry history (runtime data, not source)
+data/
+
 # Yarn Integrity file
 .yarn-integrity
 

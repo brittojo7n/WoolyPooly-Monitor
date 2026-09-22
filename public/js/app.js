@@ -1,6 +1,6 @@
 /* WoolyPooly Monitor — frontend app.
- * - Consumes the /api/stats payload (history, merge coins, all native income
- *   windows, worker summaries) via SSE + a one-shot fetch.
+ * - Consumes the /api/stats payload over SSE + a one-shot fetch.
+ * - Renders a strict separation of API / OBSERVED / PROJECTED / THEORETICAL.
  * - Batches DOM writes into requestAnimationFrame to keep INP low.
  * - Redraws the canvas through rAF with a devicePixelRatio clamp.
  * - Instruments Core Web Vitals (LCP / CLS / INP) and reports them to the
@@ -57,7 +57,6 @@
           } else if (e.entryType === 'layout-shift' && !e.hadRecentInput) {
             window.__perf.CLS += e.value;
           } else if (e.entryType === 'event') {
-            // INP candidate: interaction latency.
             window.__perf.INP = e.duration;
           }
         }
@@ -90,7 +89,8 @@
    * Helpers
    * ------------------------------------------------------------------ */
   function shortWallet(w) {
-    return w.length > 16 ? w.slice(0, 10) + '\u2026' + w.slice(-6) : w;
+    var s = String(w || '');
+    return s.length > 16 ? s.slice(0, 10) + '\u2026' + s.slice(-6) : s;
   }
 
   function esc(value) {
@@ -128,8 +128,13 @@
     pendingText.clear();
   }
 
+  function num(v) {
+    var n = typeof v === 'number' ? v : parseFloat(v);
+    return isFinite(n) ? n : 0;
+  }
+
   function formatEta(hours) {
-    if (!isFinite(hours) || hours <= 0) return '--';
+    if (hours == null || !isFinite(hours) || hours <= 0) return '--';
     if (hours < 1) return Math.max(1, Math.round(hours * 60)) + 'm';
     if (hours < 48) return hours.toFixed(1) + 'h';
     return (hours / 24).toFixed(1) + 'd';
@@ -145,8 +150,7 @@
     return h.toFixed(2) + ' H/s';
   }
 
-  /* 24h hashrate trend from the pool's hourly performance series
-     (hashrate.history is ordered oldest -> newest). */
+  /* 24h hashrate trend from a per-account series ({ts, hr}, oldest → newest). */
   function hashrateTrendPct(history) {
     if (!history || history.length < 2) return null;
     var first = null, last = null;
@@ -161,7 +165,7 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * Chart
+   * Chart — plots WoolyPooly API per-hour credited buckets over 24h.
    * ------------------------------------------------------------------ */
   function initChart() {
     chart = document.getElementById('velocityCanvas');
@@ -384,6 +388,7 @@
   function reconnectStream() {
     if (sseSource) sseSource.close();
     sseSource = new EventSource('/api/stream');
+    sseSource.onerror = function () { /* EventSource auto-reconnects */ };
     sseSource.onmessage = function (event) {
       try {
         updateUI(JSON.parse(event.data));
@@ -403,20 +408,24 @@
    * Rendering
    * ------------------------------------------------------------------ */
   function updateUI(data) {
-    // Guard against duplicate/malformed payloads.
-    if (!data || !data.poolStats || !data.balances || !data.earnings || !data.hashrate) return;
+    if (!data || !data.api || !data.api.account || !data.observed) return;
 
     var ticker = data.coinTicker || 'VTC';
-    var price = data.usdPrice || 0;
-    var b = data.balances;
-    var e = data.earnings;
-    var a = data.analytics || {};
-    var h = data.hashrate;
-    var p = data.poolStats;
+    var price = num(data.usdPrice);
+    var apiAcc = data.api.account;
+    var apiPool = data.api.pool || {};
+    var obs = data.observed;
+    var payout = data.payout || {};
+    var analytics = data.analytics || {};
 
-    var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(b) + '|' + JSON.stringify(p) + '|' + JSON.stringify(h);
+    var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(apiAcc.income) + '|' +
+      JSON.stringify(obs.earnings) + '|' + JSON.stringify(apiPool);
     if (key === lastPayloadKey) return; // nothing changed, skip the whole repaint
     lastPayloadKey = key;
+
+    var income = apiAcc.income || {};
+    var hash = apiAcc.hashrate || {};
+    var counts = apiAcc.workerCounts || {};
 
     var modeBadge = el('modeBadge');
     var updated = new Date(data.timestamp).toLocaleTimeString();
@@ -425,79 +434,119 @@
       if (data.stale) { modeBadge.textContent = 'STALE'; modeBadge.className = 'badge badge-stale'; }
       else { modeBadge.textContent = 'LIVE'; modeBadge.className = 'badge badge-live'; }
     }
-    setText('pricePill', ticker + ' $' + (price).toFixed(4));
+    setText('pricePill', ticker + ' $' + price.toFixed(4));
 
     function usd(n) { return '$' + (n * price).toFixed(2); }
 
-    setText('v-unpaid', b.unpaidBalance.toFixed(4) + ' ' + ticker);
-    setText('s-unpaid-usd', usd(b.unpaidBalance) + ' USD');
-    var payPct = p.minPay > 0 ? Math.min(100, (b.unpaidBalance / p.minPay) * 100) : 100;
-    setText('s-unpaid-pct', payPct.toFixed(0) + '% of ' + (p.minPay || 0) + ' min payout');
+    // ---- Balance / API passthrough cards ----
+    var balance = num(apiAcc.balance);
+    var immature = num(apiAcc.immatureBalance);
+    var paid = num(apiAcc.paid);
 
-    setText('v-imm', b.immatureBalance.toFixed(4) + ' ' + ticker);
-    setText('s-imm-usd', usd(b.immatureBalance) + ' USD');
+    setText('v-unpaid', balance.toFixed(4) + ' ' + ticker);
+    setText('s-unpaid-usd', usd(balance) + ' USD');
+    var minPay = payout.minPay;
+    var payPct = (minPay > 0) ? Math.min(100, (balance / minPay) * 100) : null;
+    setText('s-unpaid-pct', payPct != null ? payPct.toFixed(0) + '% of ' + minPay + ' min payout' : 'min payout n/a');
 
-    setText('v-paid', b.totalPaid.toFixed(4) + ' ' + ticker);
-    setText('s-paid-usd', usd(b.totalPaid) + ' USD');
-    setText('s-paid-today', 'Today: ' + (b.todayPaid || 0).toFixed(4) + ' ' + ticker);
+    setText('v-imm', immature.toFixed(4) + ' ' + ticker);
+    setText('s-imm-usd', usd(immature) + ' USD');
 
-    setText('v-earn', e.actual24hCoins.toFixed(4) + ' ' + ticker);
-    setText('s-earn-usd', usd(e.actual24hCoins) + ' USD');
+    setText('v-paid', paid.toFixed(4) + ' ' + ticker);
+    setText('s-paid-usd', usd(paid) + ' USD');
+    setText('s-paid-today', 'Today: ' + num(apiAcc.todayPaid).toFixed(4) + ' ' + ticker);
 
-    setText('v-est', e.nativeDay.toFixed(4) + ' ' + ticker);
-    setText('s-est-usd', usd(e.nativeDay) + ' USD');
-    setText('s-est-eff', 'Efficiency: ' + (a.apiEstimationEfficiency || 100).toFixed(1) + '%');
-
-    setText('v-luck', (a.poolLuckRealizedPct || 100).toFixed(1) + '%');
-    setText('s-luck-theory', 'Theory: ' + e.theoreticalDailyCoins.toFixed(2) + ' / day');
-
-    setText('v-hr', h.formattedCurrentHr);
-    var trend = hashrateTrendPct(h.history);
-    var trendStr = trend == null ? '' : ' · 24h ' + (trend >= 0 ? '\u2191' : '\u2193') + Math.abs(trend).toFixed(1) + '%';
-    setText('s-hr-stab', 'Stability: ' + (h.stabilityPct || 100).toFixed(1) + '%' + trendStr);
-
-    setText('v-avg', h.formattedAvg24hHr);
-    setText('s-avg-6h', '6h avg: ' + (h.formattedAvg6hHr || '0.00 H/s'));
-
-    setText('v-peff', (p.poolEffortPct || 0).toFixed(1) + '%');
-    setText('s-peff-pool', 'Pool: ' + (p.formattedPoolHr || '0.00 H/s') + ' (' + (p.poolMiners || 0) + ' miners)');
-
-    setText('v-ueff', (p.userEffortPct || 0).toFixed(1) + '%');
-    setText('s-ueff-workers', (p.workersOnline || 0) + '/' + (p.workersTotal || 0) + ' workers online');
-
-    setText('v-net', p.formattedNetHr || '0.00 H/s');
-    setText('s-net-diff', 'Difficulty: ' + (p.difficulty || 0).toFixed(2));
-    setText('s-net-block', 'Block ' + (p.height || 0) + ' · ' + (p.blockReward || 0) + ' reward');
-    var merge = (p.mergeCoins && p.mergeCoins.length) ? 'Merge: ' + p.mergeCoins.join(', ') : 'PPLNS + SOLO';
-    setText('s-net-merge', merge);
-
-    var remaining = Math.max(0, (p.minPay || 0) - b.unpaidBalance);
-    var rate = e.actual24hHourlyAvg > 0 ? e.actual24hHourlyAvg : e.theoreticalHourlyCoins;
-    if (remaining <= 0) {
-      setText('v-pay', 'Due');
-      setText('s-pay-need', 'Ready for auto payout');
-    } else if (!(rate > 0)) {
-      setText('v-pay', '--');
-      setText('s-pay-need', 'No earnings rate yet');
+    // ---- Observed 24h card (+ API reference + delta) ----
+    var obs24 = num(obs.earnings.twentyFourH);
+    setText('v-obs24', obs24.toFixed(4) + ' ' + ticker);
+    setText('s-obs24-usd', usd(obs24) + ' USD');
+    var api24 = num(income.day);
+    if (api24 > 0) {
+      var d24 = obs24 - api24;
+      var dpct = (d24 / api24) * 100;
+      setText('s-obs24-delta', 'API: ' + api24.toFixed(4) + ' · Δ ' + (d24 >= 0 ? '+' : '') + d24.toFixed(4) + ' (' + (d24 >= 0 ? '+' : '') + dpct.toFixed(1) + '%)');
     } else {
-      setText('v-pay', formatEta(remaining / rate));
-      setText('s-pay-need', 'Need ' + remaining.toFixed(4) + ' ' + ticker + ' more');
+      setText('s-obs24-delta', 'API: n/a · Δ --');
     }
 
-    setText('insightBox', a.discrepancyInsight || '');
+    // ---- WoolyPooly API 24h card ----
+    setText('v-earn', api24.toFixed(4) + ' ' + ticker);
+    setText('s-earn-usd', usd(api24) + ' USD');
 
-    // Comparison table (all API windows are now represented server-side).
+    // ---- Observed vs Theoretical (24h) card ----
+    var theoryDaily = num(data.theoretical.daily);
+    if (obs24 > 0 && theoryDaily != null && theoryDaily > 0) {
+      var ratioPct = (obs24 / theoryDaily) * 100;
+      setText('v-luck', ratioPct.toFixed(0) + '%');
+      setText('s-luck-theory', 'Theory: ' + theoryDaily.toFixed(2) + ' / day · ratio ' + ratioPct.toFixed(1) + '%');
+    } else {
+      setText('v-luck', 'N/A');
+      setText('s-luck-theory', 'Theory: ' + (theoryDaily != null && theoryDaily > 0 ? theoryDaily.toFixed(2) + ' / day' : 'N/A') + (obs24 > 0 ? '' : ' · no observed 24h'));
+    }
+
+    // ---- Hashrate / pool / network cards ----
+    var liveHr = num(hash.current);
+    var h6 = num(hash.sixH);
+    var h24 = num(hash.day);
+    setText('v-hr', formatHashrateClient(liveHr));
+
+    var trendStr = '';
+    var hrHist = data.hashrateHistory || [];
+    if (hrHist && hrHist.length > 1) {
+      var t = hashrateTrendPct(hrHist);
+      if (t != null) trendStr = ' · 24h ' + (t >= 0 ? '\u2191' : '\u2193') + Math.abs(t).toFixed(1) + '%';
+    }
+    setText('s-hr-stab', 'Live (kH/s): ' + (liveHr >= 1000 ? (liveHr / 1000).toFixed(2) : 'n/a') + trendStr);
+
+    setText('v-avg', formatHashrateClient(h24));
+    setText('s-avg-6h', '6h avg: ' + (h6 > 0 ? formatHashrateClient(h6) : '--'));
+
+    var poolEff = apiPool.poolEffortPct;
+    setText('v-peff', poolEff != null ? poolEff.toFixed(1) + '%' : 'N/A');
+    setText('s-peff-pool', 'Pool: ' + formatHashrateClient(apiPool.poolHashrate || 0) + ' (' + (apiPool.poolMiners != null ? apiPool.poolMiners : '--') + ' miners)');
+
+    var ueff = apiAcc.userEffortPct;
+    setText('v-ueff', ueff != null ? ueff.toFixed(1) + '%' : 'N/A');
+    setText('s-ueff-workers', counts.online + '/' + counts.total + ' workers online');
+
+    setText('v-net', formatHashrateClient(apiPool.netHashrate || 0));
+    setText('s-net-diff', 'Difficulty: ' + (apiPool.difficulty != null ? num(apiPool.difficulty).toFixed(2) : '--'));
+    setText('s-net-block', 'Block ' + (apiPool.height != null ? apiPool.height : '--') + ' · ' + (apiPool.blockReward != null ? num(apiPool.blockReward).toFixed(4) : '--') + ' reward');
+    var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
+    setText('s-net-merge', merge);
+
+    // ---- Payout ETA ----
+    if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
+      var eta = payout.remaining / payout.ratePerHour;
+      setText('v-pay', formatEta(eta));
+      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · ' + payout.minPay + ' min');
+    } else if (payout.remaining != null && payout.remaining <= 0) {
+      setText('v-pay', 'Due');
+      setText('s-pay-need', 'Ready for auto payout (min ' + payout.minPay + ')');
+    } else {
+      setText('v-pay', '--');
+      setText('s-pay-need', 'Based on API 24h rate');
+    }
+
+    setText('insightBox', analytics.summary || 'No data');
+
+    // ---- Comparison table: API | Observed | Projected | Theoretical ----
     var cmp = el('comparisonTableBody');
-    if (cmp && a.comparisons) {
+    if (cmp && analytics.comparisons) {
       var html = '';
-      a.comparisons.forEach(function (c) {
+      analytics.comparisons.forEach(function (c) {
+        var statusClass = '';
+        if (c.status === 'Within 5%') statusClass = 'badge-live';
+        else if (c.status === 'Outside 5%') statusClass = 'badge-stale';
+        var status = '<span class="badge ' + (statusClass || 'badge-live') + '">' + esc(c.status) + '</span>';
         html += '<tr>' +
-          '<td style="font-weight: 600;">' + esc(c.metric) + '</td>' +
-          '<td>' + esc(c.apiNative) + '</td>' +
-          '<td style="color: #34d399; font-weight: 700;">' + esc(c.calculatedActual) + '</td>' +
-          '<td style="color: #60a5fa;">' + esc(c.calculatedTheoretical) + '</td>' +
-          '<td>' + esc(c.variance) + '</td>' +
-          '<td><span class="badge badge-live">' + esc(c.status) + '</span></td></tr>';
+          '<td style="font-weight: 600;">' + esc(c.label) + '</td>' +
+          '<td style="color: #38bdf8;">' + esc(c.api) + '</td>' +
+          '<td style="color: #34d399; font-weight: 700;">' + esc(c.observed) + '</td>' +
+          '<td style="color: #e0a82e;">' + esc(c.projected == null ? '—' : c.projected) + '</td>' +
+          '<td style="color: #60a5fa;">' + esc(c.theory == null ? '—' : c.theory) + '</td>' +
+          '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td>' +
+          '<td>' + status + '</td></tr>';
       });
       cmp.innerHTML = html;
     }
@@ -505,6 +554,7 @@
     renderChart(data.profitGraph, ticker, price);
     renderWorkers(data.workers);
     renderPayments(data.payments, ticker);
+    window.__lastObserved = data.observed;
   }
 
   function renderWorkers(workers) {
@@ -519,9 +569,9 @@
       var statusClass = w.offline ? 'status-offline' : 'status-online';
       html += '<tr>' +
         '<td><span class="status-dot ' + statusClass + '"></span>' + esc(w.worker || 'unnamed') + '</td>' +
-        '<td>' + formatHashrateClient(w.hr) + '</td>' +
-        '<td>' + formatHashrateClient(w.hr2) + '</td>' +
-        '<td>' + formatHashrateClient(w.hr3) + '</td></tr>';
+        '<td>' + (w.hr ? formatHashrateClient(w.hr) : '--') + '</td>' +
+        '<td>' + (w.hr2 ? formatHashrateClient(w.hr2) : '--') + '</td>' +
+        '<td>' + (w.hr3 ? formatHashrateClient(w.hr3) : '--') + '</td></tr>';
     });
     tbody.innerHTML = html;
   }
@@ -534,7 +584,7 @@
       return;
     }
     var html = '';
-    payments.slice(0, 10).forEach(function (pay) {
+    payments.forEach(function (pay) {
       var dt = new Date(pay.timestamp * 1000).toLocaleString();
       html += '<tr>' +
         '<td>' + dt + '</td>' +

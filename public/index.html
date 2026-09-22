@@ -25,78 +25,80 @@
 
     <div class="grid-4">
       <div class="card">
-        <div class="card-header"><span>Unpaid Balance</span><button type="button" class="info" data-tip="Confirmed balance owed to you. Paid automatically once it reaches the pool minimum." aria-label="Confirmed balance owed to you. Paid automatically once it reaches the pool minimum."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>Unpaid Balance</span><button type="button" class="info" data-tip="WoolyPooly API value: confirmed balance owed to you. Paid automatically once it reaches the pool minimum. (Does not include immature coins.)" aria-label="Confirmed balance owed to you. Paid automatically once it reaches the pool minimum."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-unpaid">0.0000</div>
         <div class="metric-sub" id="s-unpaid-usd">$0.00 USD</div>
         <div class="metric-sub" style="margin-top: 6px;" id="s-unpaid-pct">0% of min payout</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Immature Balance</span><button type="button" class="info" data-tip="Freshly mined coins awaiting network confirmation. They become payable once matured." aria-label="Freshly mined coins awaiting network confirmation. They become payable once matured."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>Immature Balance</span><button type="button" class="info" data-tip="WoolyPooly API value: freshly mined coins awaiting network confirmation. They become payable once matured." aria-label="Freshly mined coins awaiting network confirmation. They become payable once matured."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-imm">0.0000</div>
         <div class="metric-sub" id="s-imm-usd">$0.00 USD</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Total Paid</span><button type="button" class="info" data-tip="All-time total paid out to this wallet by the pool." aria-label="All-time total paid out to this wallet by the pool."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>Total Paid</span><button type="button" class="info" data-tip="WoolyPooly API value: all-time total paid out by the pool to this wallet." aria-label="All-time total paid out to this wallet by the pool."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-paid">0.0000</div>
         <div class="metric-sub" id="s-paid-usd">$0.00 USD</div>
         <div class="metric-sub" style="margin-top: 6px;" id="s-paid-today">Today: 0.0000</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>24h Earnings</span><button type="button" class="info" data-tip="Coins credited over the trailing 24 hours, summed from the pool's hourly buckets." aria-label="Coins credited over the trailing 24 hours, summed from the pool's hourly buckets."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-earn" style="color: #34d399;">0.0000</div>
+        <div class="card-header"><span>Observed 24h</span><button type="button" class="info" data-tip="Account-derived: sum of the pool's per-hour credited buckets (minerProfitGraph) over the trailing 24h. Payout-resistant — a payout does not reduce this figure." aria-label="Observed 24h earnings, summed from credited buckets."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-obs24" style="color: #34d399;">0.0000</div>
+        <div class="metric-sub" id="s-obs24-usd">$0.00 USD</div>
+        <div class="metric-sub" style="margin-top: 6px; color: #34d399; font-weight: 600;">OBSERVED</div>
+        <div class="metric-sub" style="margin-top: 4px;" id="s-obs24-delta">API: -- · Δ --</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span>WoolyPooly API 24h</span><button type="button" class="info" data-tip="WoolyPooly API value: the pool's own 24-hour income figure for this wallet, displayed unchanged." aria-label="WoolyPooly API 24h earnings for this wallet."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-earn" style="color: #38bdf8;">0.0000</div>
         <div class="metric-sub" id="s-earn-usd">$0.00 USD</div>
+        <div class="metric-sub" style="margin-top: 6px; color: #38bdf8; font-weight: 600;">API</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Pool Estimate</span><button type="button" class="info" data-tip="The pool's own projection of your daily earnings at current hashrate." aria-label="The pool's own projection of your daily earnings at current hashrate."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-est">0.0000</div>
-        <div class="metric-sub" id="s-est-usd">$0.00 USD</div>
-        <div class="metric-sub" style="margin-top: 6px;" id="s-est-eff">Efficiency: 100%</div>
+        <div class="card-header"><span>Observed vs Theory</span><button type="button" class="info" data-tip="Account-derived 24h earnings divided by the theoretical 24h expectation. 100% means you earned exactly the statistical expectation (before pool luck and fee variance)." aria-label="Observed 24h earnings versus theoretical 24h expectation."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-luck">N/A</div>
+        <div class="metric-sub" id="s-luck-theory">Theory: N/A / day</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Pool Luck</span><button type="button" class="info" data-tip="Actual earnings versus statistical expectation. 100% is average; lower means the pool found fewer blocks." aria-label="Actual earnings versus statistical expectation. 100% is average; lower means the pool found fewer blocks."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-luck">100%</div>
-        <div class="metric-sub" id="s-luck-theory">Theory: 0.00 / day</div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span>Live Hashrate</span><button type="button" class="info" data-tip="Combined current hashrate reported by all your workers right now." aria-label="Combined current hashrate reported by all your workers right now."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>Live Hashrate</span><button type="button" class="info" data-tip="WoolyPooly API value: current hashrate reported by the pool for your wallet (worker hashrate)." aria-label="Current hashrate reported by the pool for your wallet."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-hr">0.00 H/s</div>
-        <div class="metric-sub" id="s-hr-stab">Stability: 100%</div>
+        <div class="metric-sub" id="s-hr-stab">Stability: --</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>24h Average</span><button type="button" class="info" data-tip="Your mean hashrate over 24 hours. Earnings estimates are based on this figure." aria-label="Your mean hashrate over 24 hours. Earnings estimates are based on this figure."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>6h / 24h Average</span><button type="button" class="info" data-tip="WoolyPooly API values: mean hashrate over 6h and 24h." aria-label="Mean hashrate over 6h and 24h."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-avg">0.00 H/s</div>
         <div class="metric-sub" id="s-avg-6h">6h avg: 0.00 H/s</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Pool Effort</span><button type="button" class="info" data-tip="Work spent on the current round versus the average needed for a block. Resets each time the pool finds one." aria-label="Work spent on the current round versus the average needed for a block. Resets each time the pool finds one."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-peff" style="color: #60a5fa;">0.0%</div>
+        <div class="card-header"><span>Pool Effort</span><button type="button" class="info" data-tip="WoolyPooly API value: work spent on the current round versus the average needed for a block. Resets each time the pool finds one." aria-label="Work spent on the current round versus the average needed for a block. Resets each time the pool finds one."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-peff" style="color: #60a5fa;">--</div>
         <div class="metric-sub" id="s-peff-pool">Pool: 0.00 H/s</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Your Effort</span><button type="button" class="info" data-tip="Your submitted shares versus expected this round. Over 100% early in a round is normal." aria-label="Your submitted shares versus expected this round. Over 100% early in a round is normal."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-ueff" style="color: #60a5fa;">0.0%</div>
-        <div class="metric-sub" id="s-ueff-workers">0/0 workers online</div>
+        <div class="card-header"><span>Your Effort</span><button type="button" class="info" data-tip="WoolyPooly API value: your submitted shares versus expected this round. Over 100% early in a round is normal." aria-label="Your submitted shares versus expected this round. Over 100% early in a round is normal."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-ueff" style="color: #60a5fa;">--</div>
+        <div class="metric-sub" id="s-ueff-workers">--/-- workers online</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Network</span><button type="button" class="info" data-tip="Total network hashrate, difficulty and latest block height for this coin." aria-label="Total network hashrate, difficulty and latest block height for this coin."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-net">0.00 H/s</div>
-        <div class="metric-sub" id="s-net-diff">Difficulty: 0</div>
-        <div class="metric-sub" style="margin-top: 6px;" id="s-net-block">Block 0</div>
+        <div class="card-header"><span>Network</span><button type="button" class="info" data-tip="WoolyPooly API values: total network hashrate, difficulty and latest block height for this coin." aria-label="Total network hashrate, difficulty and latest block height for this coin."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-net">--</div>
+        <div class="metric-sub" id="s-net-diff">Difficulty: --</div>
+        <div class="metric-sub" style="margin-top: 6px;" id="s-net-block">Block --</div>
         <div class="metric-sub" style="margin-top: 6px;" id="s-net-merge">PPLNS + SOLO</div>
       </div>
 
       <div class="card">
-        <div class="card-header"><span>Next Payout</span><button type="button" class="info" data-tip="Estimated time until your unpaid balance reaches the pool's minimum payout." aria-label="Estimated time until your unpaid balance reaches the pool's minimum payout."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>Next Payout</span><button type="button" class="info" data-tip="Estimated time until your unpaid balance reaches the pool's minimum payout. Rate source: WoolyPooly API 24h income ÷ 24." aria-label="Estimated time until unpaid balance reaches minimum payout."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-pay">--</div>
         <div class="metric-sub" id="s-pay-need">--</div>
       </div>
@@ -104,7 +106,7 @@
 
     <div class="comparison-section">
       <div class="section-title">
-        <span>API vs Derived</span>
+        <span>API vs Observed vs Theory</span>
         <span style="font-size: 12px; color: var(--text-muted);" id="lastRefreshed">Updated: --</span>
       </div>
       <div class="insight-box" id="insightBox">Analyzing...</div>
@@ -113,15 +115,16 @@
           <thead>
             <tr>
               <th>Metric</th>
-              <th>API</th>
-              <th>Actual</th>
-              <th>Theory</th>
-              <th>Delta</th>
+              <th>WoolyPooly API</th>
+              <th>Observed</th>
+              <th>Projected</th>
+              <th>Theoretical</th>
+              <th>Delta vs API</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody id="comparisonTableBody">
-            <tr><td colspan="6">Loading...</td></tr>
+            <tr><td colspan="7">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -130,8 +133,8 @@
     <div class="grid-main-chart">
       <div class="card">
         <div class="section-title">
-          <span>24h Earnings</span>
-          <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">Telemetry</span>
+          <span>WoolyPooly API Hourly Earnings — last 24h</span>
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;" id="chartLegend">API credited buckets</span>
         </div>
         <div class="chart-container" id="chartContainer">
           <canvas id="velocityCanvas"></canvas>
