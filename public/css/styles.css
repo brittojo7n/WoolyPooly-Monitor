@@ -1,0 +1,434 @@
+:root {
+  --bg-dark: #0b1120;
+  --bg-card: #162032;
+  --bg-card-hover: #1e2d4a;
+  --border-color: #26354f;
+  --primary: #10b981;
+  --primary-glow: rgba(16, 185, 129, 0.25);
+  --accent: #3b82f6;
+  --warning: #f59e0b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  line-height: 1.5;
+  padding: 16px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeSpeed;
+}
+
+@media (min-width: 768px) {
+  body { padding: 24px; }
+}
+
+.container {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+@media (min-width: 1024px) {
+  header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 22px;
+  box-shadow: 0 0 20px var(--primary-glow);
+  flex-shrink: 0;
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+@media (min-width: 768px) {
+  .brand-title { font-size: 22px; }
+}
+
+.header-pills {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (min-width: 1024px) {
+  .header-pills { justify-content: flex-end; }
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.badge-live { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.badge-stale { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+.info {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  position: relative;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.info:hover, .info:focus-visible { opacity: 1; border-color: var(--accent); color: var(--accent); }
+
+/* The tooltip bubble. It is positioned relative to the button itself (an
+   absolutely-positioned pseudo-element of the position:relative .info),
+   anchored below-right of the icon and extending leftward into the card.
+   Hover and keyboard (focus-visible) both reveal it for full accessibility. */
+.info::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: 0;
+}
+
+.info:hover::after, .info:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -6px;
+  width: 200px;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #e2e8f0;
+  z-index: 50;
+  line-height: 1.5;
+  text-align: left;
+  animation: info-fade-in 0.15s ease-out;
+}
+
+@keyframes info-fade-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 600px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1100px) {
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+.grid-main-chart {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 1024px) {
+  .grid-main-chart {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 18px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  border-color: #3b82f6;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 4px;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+@media (min-width: 768px) {
+  .metric-value { font-size: 28px; }
+}
+
+.metric-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (min-width: 768px) {
+  .section-title { font-size: 18px; }
+}
+
+.comparison-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 24px;
+}
+
+.insight-box {
+  background: rgba(59, 130, 246, 0.12);
+  border-left: 4px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
+@media (min-width: 768px) {
+  .insight-box { font-size: 14px; padding: 14px 18px; }
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  table { font-size: 14px; white-space: normal; }
+}
+
+th {
+  padding: 10px 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+tr:last-child td { border-bottom: none; }
+
+.chart-container {
+  height: 240px;
+  margin-top: 16px;
+  position: relative;
+  width: 100%;
+}
+
+#velocityCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #f8fafc;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 10px rgba(59, 130, 246, 0.3);
+  backdrop-filter: blur(8px);
+  transform: translate(-50%, -120%);
+  transition: opacity 0.15s ease-out, transform 0.1s ease-out;
+  opacity: 0;
+  z-index: 50;
+  white-space: nowrap;
+}
+
+.chart-tooltip.active {
+  opacity: 1;
+}
+
+.chart-tooltip .tt-time {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.chart-tooltip .tt-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.chart-tooltip .tt-sub {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.status-online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.status-offline { background: #ef4444; }
+
+.price-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #38bdf8;
+  white-space: nowrap;
+}
+
+/* ---- Mobile portrait refinements ---- */
+html, body { overflow-x: clip; }
+
+.metric-value { font-size: clamp(20px, 6vw, 28px); }
+
+.header-pills { flex-wrap: wrap; row-gap: 8px; }
+
+@media (max-width: 480px) {
+  body { padding: 12px; }
+  .card { padding: 14px; }
+  .comparison-section { padding: 14px; }
+  th, td { padding: 8px; }
+  table { font-size: 12px; }
+  .chart-container { height: 220px; }
+  .chart-tooltip { display: none; } /* touch chart shows hover states without a pointer tooltip */
+  /* sticky first column keeps row context while scrolling wide tables */
+  .table-wrapper table th:first-child,
+  .table-wrapper table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--bg-card);
+    z-index: 1;
+  }
+  .table-wrapper table thead th:first-child { z-index: 2; }
+  /* truncate long tx hashes instead of stretching the table */
+  #paymentsTableBody td:last-child {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Give the info-tooltips additional breathing room on the smallest screens so
+   they don't spill off the card edge. */
+@media (max-width: 380px) {
+  .info:hover::after, .info:focus-visible::after { width: 170px; }
+}
+
+/* Respect users who prefer reduced motion: disable non-essential transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .card, .chart-tooltip, .info:hover::after, .info:focus-visible::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
