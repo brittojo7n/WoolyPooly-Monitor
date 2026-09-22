@@ -1,21 +1,37 @@
 :root {
-  --bg-dark: #0b1120;
-  --bg-card: #162032;
-  --bg-card-hover: #1e2d4a;
-  --border-color: #26354f;
+  --bg-dark: #000000;
+  --bg-deep: #05080f;
+  --bg-card: rgba(17, 24, 39, 0.72);
+  --bg-card-solid: #111827;
+  --bg-card-hover: rgba(30, 41, 59, 0.82);
+  --glass: rgba(255, 255, 255, 0.055);
+  --glass-strong: rgba(255, 255, 255, 0.09);
+  --stroke: rgba(148, 163, 184, 0.16);
+  --stroke-bright: rgba(148, 163, 184, 0.28);
   --primary: #10b981;
-  --primary-glow: rgba(16, 185, 129, 0.25);
+  --primary-bright: #34d399;
   --accent: #3b82f6;
   --warning: #f59e0b;
+  --danger: #ef4444;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 24px rgba(16, 185, 129, 0.16);
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { background: var(--bg-dark); }
+
 body {
   background-color: var(--bg-dark);
+  background-image: radial-gradient(1100px 500px at 12% -8%, rgba(16, 185, 129, 0.10), transparent 60%),
+                    radial-gradient(1000px 520px at 100% 0%, rgba(59, 130, 246, 0.10), transparent 58%),
+                    radial-gradient(900px 620px at 50% 118%, rgba(16, 185, 129, 0.05), transparent 60%);
+  background-attachment: fixed;
   color: var(--text-main);
   font-family: var(--font-family);
   line-height: 1.5;
@@ -38,8 +54,12 @@ header {
   flex-direction: column;
   gap: 16px;
   margin-bottom: 24px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 @media (min-width: 1024px) {
@@ -60,13 +80,13 @@ header {
   width: 44px;
   height: 44px;
   background: linear-gradient(135deg, #10b981, #059669);
-  border-radius: 12px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: 22px;
-  box-shadow: 0 0 20px var(--primary-glow);
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.35);
   flex-shrink: 0;
 }
 
@@ -101,14 +121,14 @@ header {
   white-space: nowrap;
 }
 
-.badge-live { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.badge-stale { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.badge-live { background: rgba(16, 185, 129, 0.16); color: var(--primary-bright); }
+.badge-stale { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
 
 .info {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 1px solid var(--text-muted);
+  border: 1px solid var(--stroke-bright);
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-family);
@@ -121,50 +141,43 @@ header {
   align-items: center;
   justify-content: center;
   cursor: help;
-  position: relative;
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.info:hover, .info:focus-visible { opacity: 1; border-color: var(--accent); color: var(--accent); }
+.info:hover, .info:focus-visible { opacity: 1; border-color: var(--accent); color: #93c5fd; }
 
-/* The tooltip bubble. It is positioned relative to the button itself (an
-   absolutely-positioned pseudo-element of the position:relative .info),
-   anchored below-right of the icon and extending leftward into the card.
-   Hover and keyboard (focus-visible) both reveal it for full accessibility. */
-.info::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  z-index: 0;
+.card-header {
+  position: relative;
 }
 
-.info:hover::after, .info:focus-visible::after {
-  content: attr(data-tip);
-  position: absolute;
-  top: calc(100% + 8px);
-  right: -6px;
-  width: 200px;
+.info-tip {
+  position: fixed;
+  z-index: 1000;
+  width: 240px;
   white-space: normal;
-  text-transform: none;
-  letter-spacing: normal;
-  background: rgba(15, 23, 42, 0.97);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  padding: 10px 12px;
+  background: rgba(10, 15, 26, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  padding: 12px 14px;
   font-size: 12px;
   font-weight: 400;
   color: #e2e8f0;
-  z-index: 50;
-  line-height: 1.5;
+  line-height: 1.55;
   text-align: left;
-  animation: info-fade-in 0.15s ease-out;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-@keyframes info-fade-in {
-  from { opacity: 0; transform: translateY(-2px); }
-  to { opacity: 1; transform: translateY(0); }
+.info-tip.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .grid-4 {
@@ -185,7 +198,7 @@ header {
 .grid-main-chart {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
@@ -197,14 +210,18 @@ header {
 
 .card {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
   padding: 18px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .card:hover {
-  border-color: #3b82f6;
+  border-color: var(--stroke-bright);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
 }
 
 .card-header {
@@ -226,6 +243,7 @@ header {
   margin-bottom: 4px;
   line-height: 1.2;
   word-break: break-all;
+  letter-spacing: -0.5px;
 }
 
 @media (min-width: 768px) {
@@ -254,17 +272,21 @@ header {
 
 .comparison-section {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
   padding: 18px;
   margin-bottom: 24px;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .insight-box {
-  background: rgba(59, 130, 246, 0.12);
-  border-left: 4px solid var(--accent);
+  background: rgba(59, 130, 246, 0.10);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-left: 3px solid var(--accent);
   padding: 12px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   margin-bottom: 18px;
   font-size: 13px;
   color: #e2e8f0;
@@ -296,7 +318,7 @@ table {
 th {
   padding: 10px 12px;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--stroke);
   font-weight: 700;
   text-transform: uppercase;
   font-size: 11px;
@@ -305,10 +327,109 @@ th {
 
 td {
   padding: 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--stroke);
 }
 
+tbody tr { transition: background 0.12s ease; }
+
+tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+
 tr:last-child td { border-bottom: none; }
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--stroke);
+}
+
+.pagination.is-empty { border-top: none; padding-top: 0; margin-top: 0; }
+
+.page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--glass-strong);
+  border-color: var(--stroke-bright);
+}
+
+.page-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.page-num {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 6px;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.page-num::-webkit-outer-spin-button,
+.page-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.page-num:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+}
+
+.page-scope {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  min-width: 118px;
+  text-align: center;
+}
+
+.page-pill {
+  padding: 7px 14px;
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: var(--primary-bright);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.page-row-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
 
 .chart-container {
   height: 240px;
@@ -327,16 +448,17 @@ tr:last-child td { border-bottom: none; }
 .chart-tooltip {
   position: absolute;
   pointer-events: none;
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid #3b82f6;
-  border-radius: 8px;
+  background: rgba(10, 15, 26, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
   padding: 10px 14px;
   font-size: 12px;
   color: #f8fafc;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 10px rgba(59, 130, 246, 0.3);
-  backdrop-filter: blur(8px);
-  transform: translate(-50%, -120%);
-  transition: opacity 0.15s ease-out, transform 0.1s ease-out;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  transform: translate(-50%, calc(-100% - 14px));
+  transition: opacity 0.15s ease-out;
   opacity: 0;
   z-index: 50;
   white-space: nowrap;
@@ -356,7 +478,7 @@ tr:last-child td { border-bottom: none; }
 .chart-tooltip .tt-val {
   font-size: 14px;
   font-weight: 700;
-  color: #34d399;
+  color: var(--primary-bright);
 }
 
 .chart-tooltip .tt-sub {
@@ -374,11 +496,11 @@ tr:last-child td { border-bottom: none; }
 }
 
 .status-online { background: #10b981; box-shadow: 0 0 8px #10b981; }
-.status-offline { background: #ef4444; }
+.status-offline { background: var(--danger); }
 
 .price-pill {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--glass);
+  border: 1px solid var(--stroke);
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 12px;
@@ -387,31 +509,32 @@ tr:last-child td { border-bottom: none; }
   white-space: nowrap;
 }
 
-/* ---- Mobile portrait refinements ---- */
 html, body { overflow-x: clip; }
 
 .metric-value { font-size: clamp(20px, 6vw, 28px); }
 
 .header-pills { flex-wrap: wrap; row-gap: 8px; }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   body { padding: 12px; }
   .card { padding: 14px; }
   .comparison-section { padding: 14px; }
+  header { padding: 14px; }
   th, td { padding: 8px; }
   table { font-size: 12px; }
   .chart-container { height: 220px; }
-  .chart-tooltip { display: none; } /* touch chart shows hover states without a pointer tooltip */
-  /* sticky first column keeps row context while scrolling wide tables */
+  .chart-tooltip { display: none; }
+  .page-btn { min-width: 32px; height: 32px; padding: 0 10px; }
+  .page-num { min-width: 34px; height: 34px; }
+  .page-scope { min-width: 0; width: 100%; }
   .table-wrapper table th:first-child,
   .table-wrapper table td:first-child {
     position: sticky;
     left: 0;
-    background: var(--bg-card);
+    background: var(--bg-card-solid);
     z-index: 1;
   }
   .table-wrapper table thead th:first-child { z-index: 2; }
-  /* truncate long tx hashes instead of stretching the table */
   #paymentsTableBody td:last-child {
     max-width: 140px;
     overflow: hidden;
@@ -419,15 +542,9 @@ html, body { overflow-x: clip; }
   }
 }
 
-/* Give the info-tooltips additional breathing room on the smallest screens so
-   they don't spill off the card edge. */
-@media (max-width: 380px) {
-  .info:hover::after, .info:focus-visible::after { width: 170px; }
-}
-
-/* Respect users who prefer reduced motion: disable non-essential transitions. */
 @media (prefers-reduced-motion: reduce) {
-  .card, .chart-tooltip, .info:hover::after, .info:focus-visible::after {
+  .card, .chart-tooltip, .info-tip,
+  .page-btn, .info, tbody tr {
     transition: none !important;
     animation: none !important;
   }

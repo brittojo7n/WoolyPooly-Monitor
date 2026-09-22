@@ -1,15 +1,8 @@
-/* WoolyPooly Monitor — frontend app.
- * - Consumes the /api/stats payload over SSE + a one-shot fetch.
- * - Renders a strict separation of API / OBSERVED / PROJECTED / THEORETICAL.
- * - Batches DOM writes into requestAnimationFrame to keep INP low.
- * - Redraws the canvas through rAF with a devicePixelRatio clamp.
- * - Instruments Core Web Vitals (LCP / CLS / INP) and reports them to the
- *   console so they can be checked in DevTools without a profiler.
- */
 (function () {
   'use strict';
 
   var DEFAULT_WALLET = (document.body && document.body.dataset.defaultWallet) || '';
+  var PAGE_SIZE = 5;
   var sseSource = null;
   var chart = null;
   var tooltip = null;
@@ -19,17 +12,18 @@
   var hoveredIndex = -1;
   var lastPayloadKey = null;
 
-  /* Per-update DOM write cache. All writes are flushed together on the next
-     animation frame so a burst of values never forces repeated layout. */
+  var pageState = {
+    workers: { page: 1, data: [] },
+    payments: { page: 1, data: [] }
+  };
+
   var pendingText = new Map();
   var rafPending = false;
   var elCache = new Map();
 
   var chartDirty = false;
+  var infoTip = null;
 
-  /* ------------------------------------------------------------------ *
-   * Core Web Vitals observer (developer instrumentation)
-   * ------------------------------------------------------------------ */
   window.__perf = { LCP: null, CLS: 0, INP: null, events: [] };
 
   function reportPerf() {
@@ -41,7 +35,6 @@
       INP_ms: window.__perf.INP != null ? Math.round(window.__perf.INP) : null,
       INP: window.__perf.INP != null ? (window.__perf.INP <= 200 ? 'good' : window.__perf.INP <= 500 ? 'needs-improvement' : 'poor') : null
     };
-    // eslint-disable-next-line no-console
     console.info('[CWV] %o', out);
     return out;
   }
@@ -77,17 +70,13 @@
           }
         }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
       }
-    } catch (err) { /* older browsers: skip */ }
+    } catch (err) {}
   }
 
-  // Emit the final numbers once the page has settled.
   window.addEventListener('load', function () {
     setTimeout(reportPerf, 1500);
   });
 
-  /* ------------------------------------------------------------------ *
-   * Helpers
-   * ------------------------------------------------------------------ */
   function shortWallet(w) {
     var s = String(w || '');
     return s.length > 16 ? s.slice(0, 10) + '\u2026' + s.slice(-6) : s;
@@ -150,7 +139,6 @@
     return h.toFixed(2) + ' H/s';
   }
 
-  /* 24h hashrate trend from a per-account series ({ts, hr}, oldest → newest). */
   function hashrateTrendPct(history) {
     if (!history || history.length < 2) return null;
     var first = null, last = null;
@@ -164,9 +152,6 @@
     return ((last - first) / first) * 100;
   }
 
-  /* ------------------------------------------------------------------ *
-   * Chart — plots WoolyPooly API per-hour credited buckets over 24h.
-   * ------------------------------------------------------------------ */
   function initChart() {
     chart = document.getElementById('velocityCanvas');
     tooltip = document.getElementById('chartTooltip');
@@ -382,17 +367,14 @@
     markChartDirty();
   }
 
-  /* ------------------------------------------------------------------ *
-   * Data transport
-   * ------------------------------------------------------------------ */
   function reconnectStream() {
     if (sseSource) sseSource.close();
     sseSource = new EventSource('/api/stream');
-    sseSource.onerror = function () { /* EventSource auto-reconnects */ };
+    sseSource.onerror = function () {};
     sseSource.onmessage = function (event) {
       try {
         updateUI(JSON.parse(event.data));
-      } catch (e) { /* ignore malformed frames */ }
+      } catch (e) {}
     };
     fetchDataOnce();
   }
@@ -401,12 +383,197 @@
     fetch('/api/stats')
       .then(function (res) { return res.json(); })
       .then(updateUI)
-      .catch(function () { /* SSE will retry on its own */ });
+      .catch(function () {});
   }
 
-  /* ------------------------------------------------------------------ *
-   * Rendering
-   * ------------------------------------------------------------------ */
+  function buildPagination(boxId, state, tableBodyId) {
+    var box = el(boxId);
+    if (!box) return;
+
+    var total = state.data.length;
+    if (total <= PAGE_SIZE) {
+      while (box.firstChild) box.removeChild(box.firstChild);
+      box.classList.add('is-empty');
+      return;
+    }
+    box.classList.remove('is-empty');
+    while (box.firstChild) box.removeChild(box.firstChild);
+
+    var pages = Math.ceil(total / PAGE_SIZE);
+    if (state.page < 1) state.page = 1;
+    if (state.page > pages) state.page = pages;
+
+    var start = total === 0 ? 0 : (state.page - 1) * PAGE_SIZE + 1;
+    var end = Math.min(total, state.page * PAGE_SIZE);
+
+    var entry = document.createElement('div');
+    entry.className = 'page-row-count';
+    entry.textContent = 'Showing ' + start + '–' + end + ' of ' + total;
+    box.appendChild(entry);
+
+    var prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.className = 'page-btn';
+    prevBtn.textContent = '‹ Prev';
+    prevBtn.disabled = state.page <= 1;
+    prevBtn.addEventListener('click', function () {
+      if (state.page > 1) {
+        state.page--;
+        renderTable(tableBodyId, state);
+        buildPagination(boxId, state, tableBodyId);
+      }
+    });
+    box.appendChild(prevBtn);
+
+    var input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'page-num';
+    input.min = '1';
+    input.max = String(pages);
+    input.value = String(state.page);
+    input.setAttribute('aria-label', 'Page number');
+
+    var commit = function () {
+      var raw = input.value;
+      if (raw === '') {
+        input.value = String(state.page);
+        input.blur();
+        return;
+      }
+      var n = parseInt(raw, 10);
+      if (!isFinite(n) || n < 1 || n > pages) {
+        input.value = String(state.page);
+        return;
+      }
+      state.page = n;
+      renderTable(tableBodyId, state);
+      buildPagination(boxId, state, tableBodyId);
+    };
+
+    input.addEventListener('keydown', function (evt) {
+      if (evt.key === 'Enter') {
+        evt.preventDefault();
+        commit();
+        input.blur();
+      }
+    });
+    input.addEventListener('blur', commit);
+    box.appendChild(input);
+
+    var scope = document.createElement('span');
+    scope.className = 'page-scope';
+    scope.textContent = 'Page ' + state.page + ' of ' + pages;
+    box.appendChild(scope);
+
+    var nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.className = 'page-btn';
+    nextBtn.textContent = 'Next ›';
+    nextBtn.disabled = state.page >= pages;
+    nextBtn.addEventListener('click', function () {
+      if (state.page < pages) {
+        state.page++;
+        renderTable(tableBodyId, state);
+        buildPagination(boxId, state, tableBodyId);
+      }
+    });
+    box.appendChild(nextBtn);
+
+    var pill = document.createElement('span');
+    pill.className = 'page-pill';
+    pill.textContent = pages + ' pages';
+    box.appendChild(pill);
+  }
+
+  function clampPages(state) {
+    var pages = Math.max(1, Math.ceil(state.data.length / PAGE_SIZE));
+    if (state.page < 1) state.page = 1;
+    if (state.page > pages) state.page = pages;
+  }
+
+  function renderWorkersTable() {
+    clampPages(pageState.workers);
+    var tbody = el('workersTableBody');
+    var workers = pageState.workers.data;
+    if (!tbody) return;
+
+    if (workers.length <= PAGE_SIZE) {
+      if (workers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">No workers</td></tr>';
+      } else {
+        var whole = '';
+        workers.forEach(function (w) {
+          whole += workerRow(w);
+        });
+        tbody.innerHTML = whole;
+      }
+      return;
+    }
+
+    if (workers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4">No workers</td></tr>';
+      return;
+    }
+
+    var startIdx = (pageState.workers.page - 1) * PAGE_SIZE;
+    var slice = workers.slice(startIdx, startIdx + PAGE_SIZE);
+    var html = '';
+    slice.forEach(function (w) {
+      html += workerRow(w);
+    });
+    tbody.innerHTML = html;
+  }
+
+  function workerRow(w) {
+    var statusClass = w.offline ? 'status-offline' : 'status-online';
+    return '<tr>' +
+      '<td><span class="status-dot ' + statusClass + '"></span>' + esc(w.worker || 'unnamed') + '</td>' +
+      '<td>' + (w.hr ? formatHashrateClient(w.hr) : '--') + '</td>' +
+      '<td>' + (w.hr2 ? formatHashrateClient(w.hr2) : '--') + '</td>' +
+      '<td>' + (w.hr3 ? formatHashrateClient(w.hr3) : '--') + '</td></tr>';
+  }
+
+  function renderPaymentsTable() {
+    clampPages(pageState.payments);
+    var tbody = el('paymentsTableBody');
+    var payments = pageState.payments.data;
+    if (!tbody) return;
+
+    if (payments.length <= PAGE_SIZE) {
+      if (payments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3">No payments</td></tr>';
+      } else {
+        var whole = '';
+        payments.forEach(function (pay) {
+          whole += paymentRow(pay);
+        });
+        tbody.innerHTML = whole;
+      }
+      return;
+    }
+
+    if (payments.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3">No payments</td></tr>';
+      return;
+    }
+
+    var startIdx = (pageState.payments.page - 1) * PAGE_SIZE;
+    var slice = payments.slice(startIdx, startIdx + PAGE_SIZE);
+    var html = '';
+    slice.forEach(function (pay) {
+      html += paymentRow(pay);
+    });
+    tbody.innerHTML = html;
+  }
+
+  function paymentRow(pay) {
+    var dt = new Date(pay.timestamp * 1000).toLocaleString();
+    return '<tr>' +
+      '<td>' + dt + '</td>' +
+      '<td style="color: #34d399; font-weight: 700;">' + (parseFloat(pay.amount) || 0).toFixed(4) + ' VTC</td>' +
+      '<td style="font-family: monospace; font-size: 12px; color: var(--text-muted);">' + esc(pay.tx || 'N/A') + '</td></tr>';
+  }
+
   function updateUI(data) {
     if (!data || !data.api || !data.api.account || !data.observed) return;
 
@@ -420,7 +587,7 @@
 
     var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(apiAcc.income) + '|' +
       JSON.stringify(obs.earnings) + '|' + JSON.stringify(apiPool);
-    if (key === lastPayloadKey) return; // nothing changed, skip the whole repaint
+    if (key === lastPayloadKey) return;
     lastPayloadKey = key;
 
     var income = apiAcc.income || {};
@@ -438,7 +605,6 @@
 
     function usd(n) { return '$' + (n * price).toFixed(2); }
 
-    // ---- Balance / API passthrough cards ----
     var balance = num(apiAcc.balance);
     var immature = num(apiAcc.immatureBalance);
     var paid = num(apiAcc.paid);
@@ -456,7 +622,6 @@
     setText('s-paid-usd', usd(paid) + ' USD');
     setText('s-paid-today', 'Today: ' + num(apiAcc.todayPaid).toFixed(4) + ' ' + ticker);
 
-    // ---- Observed 24h card (+ API reference + delta) ----
     var obs24 = num(obs.earnings.twentyFourH);
     setText('v-obs24', obs24.toFixed(4) + ' ' + ticker);
     setText('s-obs24-usd', usd(obs24) + ' USD');
@@ -469,11 +634,9 @@
       setText('s-obs24-delta', 'API: n/a · Δ --');
     }
 
-    // ---- WoolyPooly API 24h card ----
     setText('v-earn', api24.toFixed(4) + ' ' + ticker);
     setText('s-earn-usd', usd(api24) + ' USD');
 
-    // ---- Observed vs Theoretical (24h) card ----
     var theoryDaily = num(data.theoretical.daily);
     if (obs24 > 0 && theoryDaily != null && theoryDaily > 0) {
       var ratioPct = (obs24 / theoryDaily) * 100;
@@ -484,7 +647,6 @@
       setText('s-luck-theory', 'Theory: ' + (theoryDaily != null && theoryDaily > 0 ? theoryDaily.toFixed(2) + ' / day' : 'N/A') + (obs24 > 0 ? '' : ' · no observed 24h'));
     }
 
-    // ---- Hashrate / pool / network cards ----
     var liveHr = num(hash.current);
     var h6 = num(hash.sixH);
     var h24 = num(hash.day);
@@ -515,7 +677,6 @@
     var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
     setText('s-net-merge', merge);
 
-    // ---- Payout ETA ----
     if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
       var eta = payout.remaining / payout.ratePerHour;
       setText('v-pay', formatEta(eta));
@@ -530,7 +691,6 @@
 
     setText('insightBox', analytics.summary || 'No data');
 
-    // ---- Comparison table: API | Observed | Projected | Theoretical ----
     var cmp = el('comparisonTableBody');
     if (cmp && analytics.comparisons) {
       var html = '';
@@ -551,55 +711,89 @@
       cmp.innerHTML = html;
     }
 
+    pageState.workers.data = Array.isArray(data.workers) ? data.workers : [];
+    pageState.payments.data = Array.isArray(data.payments) ? data.payments : [];
+
+    renderWorkersTable();
+    buildPagination('workersPagination', pageState.workers, 'workersTableBody');
+    renderPaymentsTable();
+    buildPagination('paymentsPagination', pageState.payments, 'paymentsTableBody');
+
     renderChart(data.profitGraph, ticker, price);
-    renderWorkers(data.workers);
-    renderPayments(data.payments, ticker);
     window.__lastObserved = data.observed;
   }
 
-  function renderWorkers(workers) {
-    var tbody = el('workersTableBody');
-    if (!tbody) return;
-    if (!workers || workers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4">No workers</td></tr>';
-      return;
-    }
-    var html = '';
-    workers.forEach(function (w) {
-      var statusClass = w.offline ? 'status-offline' : 'status-online';
-      html += '<tr>' +
-        '<td><span class="status-dot ' + statusClass + '"></span>' + esc(w.worker || 'unnamed') + '</td>' +
-        '<td>' + (w.hr ? formatHashrateClient(w.hr) : '--') + '</td>' +
-        '<td>' + (w.hr2 ? formatHashrateClient(w.hr2) : '--') + '</td>' +
-        '<td>' + (w.hr3 ? formatHashrateClient(w.hr3) : '--') + '</td></tr>';
-    });
-    tbody.innerHTML = html;
+  function renderTable(tableBodyId, state) {
+    if (tableBodyId === 'workersTableBody') renderWorkersTable();
+    else renderPaymentsTable();
   }
 
-  function renderPayments(payments, ticker) {
-    var tbody = el('paymentsTableBody');
-    if (!tbody) return;
-    if (!payments || payments.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3">No payments</td></tr>';
-      return;
-    }
-    var html = '';
-    payments.forEach(function (pay) {
-      var dt = new Date(pay.timestamp * 1000).toLocaleString();
-      html += '<tr>' +
-        '<td>' + dt + '</td>' +
-        '<td style="color: #34d399; font-weight: 700;">' + (parseFloat(pay.amount) || 0).toFixed(4) + ' ' + esc(ticker) + '</td>' +
-        '<td style="font-family: monospace; font-size: 12px; color: var(--text-muted);">' + esc(pay.tx || 'N/A') + '</td></tr>';
+  function initInfoTips() {
+    document.addEventListener('mouseover', function (evt) {
+      var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
+      if (!btn) return;
+      var tip = btn.getAttribute('data-tip');
+      if (!tip) return;
+      showInfoTip(btn, tip);
     });
-    tbody.innerHTML = html;
+
+    document.addEventListener('focusin', function (evt) {
+      var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
+      if (!btn) return;
+      var tip = btn.getAttribute('data-tip');
+      if (!tip) return;
+      showInfoTip(btn, tip);
+    });
+
+    document.addEventListener('mouseout', function (evt) {
+      var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
+      if (btn) hideInfoTip();
+    });
+
+    document.addEventListener('focusout', function (evt) {
+      var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
+      if (btn) hideInfoTip();
+    });
   }
 
-  /* ------------------------------------------------------------------ *
-   * Boot
-   * ------------------------------------------------------------------ */
+  function showInfoTip(btn, tip) {
+    hideInfoTip();
+    var bubble = document.createElement('div');
+    bubble.className = 'info-tip';
+    bubble.textContent = tip;
+    bubble.setAttribute('role', 'tooltip');
+    document.body.appendChild(bubble);
+
+    var rect = btn.getBoundingClientRect();
+    var bw = bubble.offsetWidth;
+    var bh = bubble.offsetHeight;
+    var gap = 10;
+    var margin = 12;
+
+    var left = rect.right + gap;
+    if (left + bw > window.innerWidth - margin) {
+      left = rect.left - bw - gap;
+    }
+    var top = rect.top + rect.height / 2 - bh / 2;
+    if (top < margin) top = margin;
+    if (top + bh > window.innerHeight - margin) top = window.innerHeight - bh - margin;
+
+    bubble.style.left = left + 'px';
+    bubble.style.top = top + 'px';
+    bubble.classList.add('show');
+    infoTip = bubble;
+  }
+
+  function hideInfoTip() {
+    if (!infoTip) return;
+    if (infoTip.parentNode) infoTip.parentNode.removeChild(infoTip);
+    infoTip = null;
+  }
+
   if (el('walletTag')) {
     el('walletTag').textContent = DEFAULT_WALLET ? ' · ' + shortWallet(DEFAULT_WALLET) : '';
   }
   initChart();
+  initInfoTips();
   reconnectStream();
 })();
