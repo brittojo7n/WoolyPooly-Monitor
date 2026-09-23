@@ -617,6 +617,8 @@ tr:last-child td {
   opacity: 0;
   z-index: 50;
   white-space: nowrap;
+  width: max-content;
+  text-align: center;
 }
 
 .chart-tooltip.active {
@@ -634,6 +636,13 @@ tr:last-child td {
   font-size: 14px;
   font-weight: 700;
   color: var(--green-bright);
+}
+
+.chart-tooltip .tt-usd {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green-bright);
+  margin-top: 2px;
 }
 
 .chart-tooltip .tt-sub {

@@ -181,11 +181,11 @@
 
       if (tooltip) {
         var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Hour ' + (idx + 1);
-        var usdStr = (amount * lastUsdPrice) > 0 ? ' ($' + (amount * lastUsdPrice).toFixed(4) + ' USD)' : '';
+        var usdStr = (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
         var partStr = item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
         tooltip.innerHTML = '<div class="tt-time">' + dt + '</div>' +
-          '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + usdStr + '</div>' +
-          partStr;
+          '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + '</div>' +
+          usdStr + partStr;
         var ttHalf = tooltip.offsetWidth / 2 + 8;
         tooltip.style.left = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX)) + 'px';
         tooltip.style.top = Math.max(25, pointY) + 'px';
