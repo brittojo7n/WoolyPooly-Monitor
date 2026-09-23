@@ -585,7 +585,7 @@
     var analytics = data.analytics || {};
 
     var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(apiAcc.income) + '|' +
-      JSON.stringify([est.perHour, est.perDay, est.productiveBuckets]) + '|' + JSON.stringify(apiPool);
+      JSON.stringify([est.perHour, est.perDay, est.windowBuckets]) + '|' + JSON.stringify(apiPool);
     if (key === lastPayloadKey) return;
     lastPayloadKey = key;
 
