@@ -9,6 +9,8 @@
   var lastUsdPrice = 0;
   var hoveredIndex = -1;
   var touchPinned = -1;
+  var lastTipIdx = -1;
+  var lastGraphMax = 0.0001;
   var lastPayloadKey = null;
 
   var pageState = {
@@ -22,6 +24,15 @@
 
   var chartDirty = false;
   var infoTip = null;
+  var tipTimer = null;
+  var tipBtn = null;
+
+  function clearTipTimer() {
+    if (tipTimer) {
+      clearTimeout(tipTimer);
+      tipTimer = null;
+    }
+  }
 
   window.__perf = { LCP: null, CLS: 0, INP: null, events: [] };
 
@@ -76,15 +87,57 @@
     setTimeout(reportPerf, 1500);
   });
 
-  function shortWallet(w) {
-    var s = String(w || '');
-    return s.length > 16 ? s.slice(0, 10) + '\u2026' + s.slice(-6) : s;
-  }
-
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  var walletCopyTimer = null;
+
+  function copyWallet() {
+    var btn = el('walletCopy');
+    function done(ok) {
+      if (!btn) return;
+      if (btn.classList.toggle) btn.classList.toggle('copied', !!ok);
+      else if (ok) btn.classList.add('copied');
+      if (walletCopyTimer) clearTimeout(walletCopyTimer);
+      walletCopyTimer = setTimeout(function () {
+        btn.classList.remove('copied');
+      }, 1200);
+    }
+    function legacyCopy() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = DEFAULT_WALLET;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try {
+          ok = document.execCommand('copy');
+        } catch (ignored) {
+          ok = false;
+        }
+        document.body.removeChild(ta);
+        done(!!ok);
+      } catch (err) {
+        done(false);
+      }
+    }
+    if (!DEFAULT_WALLET) {
+      done(false);
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(DEFAULT_WALLET).then(function () {
+        done(true);
+      }, legacyCopy);
+    } else {
+      legacyCopy();
+    }
   }
 
   function el(id) {
@@ -143,18 +196,39 @@
     tooltip = document.getElementById('chartTooltip');
     if (!chart) return;
 
-    function handlePointer(evt) {
+    var pointerQueued = false;
+    var pointerX = 0;
+    var pointerType = '';
+    var pointerIsTouch = false;
+
+    function queuePointer(evt) {
+      pointerX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      pointerType = evt.type;
+      pointerIsTouch = !!evt.touches;
+      if (!pointerQueued) {
+        pointerQueued = true;
+        requestAnimationFrame(runPointer);
+      }
+    }
+
+    function runPointer() {
+      pointerQueued = false;
+      handlePointer(pointerX, pointerType, pointerIsTouch);
+    }
+
+    function handlePointer(clientX, type, isTouch) {
       if (!lastGraphData || lastGraphData.length === 0) return;
       var rect = chart.getBoundingClientRect();
-      var clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
       var x = clientX - rect.left;
       var padding = { top: 20, right: 20, bottom: 35, left: 60 };
       var w = rect.width - padding.left - padding.right;
       var count = lastGraphData.length;
 
       if (x < padding.left || x > rect.width - padding.right) {
+        if (hoveredIndex === -1 && touchPinned === -1) return;
         hoveredIndex = -1;
         touchPinned = -1;
+        lastTipIdx = -1;
         if (tooltip) tooltip.classList.remove('active');
         markChartDirty();
         return;
@@ -162,20 +236,22 @@
 
       var step = w / (count - 1 || 1);
       var idx = Math.max(0, Math.min(count - 1, Math.round((x - padding.left) / step)));
-      if (evt.type === 'touchstart' && idx === touchPinned) {
+      if (type === 'touchstart' && idx === touchPinned) {
         touchPinned = -1;
         hoveredIndex = -1;
+        lastTipIdx = -1;
         if (tooltip) tooltip.classList.remove('active');
         markChartDirty();
         return;
       }
-      if (evt.touches) touchPinned = idx;
+      if (idx === hoveredIndex && idx === lastTipIdx) return;
+      if (isTouch) touchPinned = idx;
       hoveredIndex = idx;
 
       var item = lastGraphData[idx];
       var amount = parseFloat(item.amount) || 0;
       var pointX = padding.left + idx * step;
-      var maxVal = Math.max.apply(null, lastGraphData.map(function (g) { return parseFloat(g.amount) || 0; }).concat([0.0001])) * 1.15;
+      var maxVal = lastGraphMax;
       var h = rect.height - padding.top - padding.bottom;
       var pointY = padding.top + h - (amount / maxVal) * h;
 
@@ -190,24 +266,32 @@
         tooltip.style.left = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX)) + 'px';
         tooltip.style.top = Math.max(25, pointY) + 'px';
         tooltip.classList.add('active');
+        lastTipIdx = idx;
       }
       markChartDirty();
     }
 
-    chart.addEventListener('mousemove', handlePointer);
+    chart.addEventListener('mousemove', queuePointer);
     chart.addEventListener('mouseleave', function () {
       hoveredIndex = -1;
+      lastTipIdx = -1;
       if (tooltip) tooltip.classList.remove('active');
       markChartDirty();
     });
-    chart.addEventListener('touchstart', handlePointer, { passive: true });
-    chart.addEventListener('touchmove', handlePointer, { passive: true });
+    chart.addEventListener('touchstart', queuePointer, { passive: true });
+    chart.addEventListener('touchmove', queuePointer, { passive: true });
     document.addEventListener('touchstart', function (evt) {
       if (evt.target !== chart && touchPinned !== -1) {
         touchPinned = -1;
         hoveredIndex = -1;
+        lastTipIdx = -1;
         if (tooltip) tooltip.classList.remove('active');
         markChartDirty();
+      }
+      if (!evt.target.closest || !evt.target.closest('.info')) {
+        clearTipTimer();
+        tipBtn = null;
+        hideInfoTip();
       }
     }, { passive: true });
 
@@ -249,8 +333,7 @@
     var w = rect.width - padding.left - padding.right;
     var h = rect.height - padding.top - padding.bottom;
     var amounts = lastGraphData.map(function (g) { return parseFloat(g.amount) || 0; });
-    var rawMax = Math.max.apply(null, amounts.concat([0.0001]));
-    var maxVal = rawMax * 1.15;
+    var maxVal = lastGraphMax;
     var count = lastGraphData.length;
     var step = w / (count - 1 || 1);
 
@@ -363,6 +446,13 @@
     lastGraphData = graph || [];
     lastTicker = ticker || 'VTC';
     lastUsdPrice = usdPrice || 0;
+    lastTipIdx = -1;
+    var m = 0.0001;
+    for (var i = 0; i < lastGraphData.length; i++) {
+      var v = parseFloat(lastGraphData[i].amount) || 0;
+      if (v > m) m = v;
+    }
+    lastGraphMax = m * 1.15;
     markChartDirty();
   }
 
@@ -584,9 +674,11 @@
     var payout = data.payout || {};
     var analytics = data.analytics || {};
 
-    var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(apiAcc.income) + '|' +
-      JSON.stringify([est.perHour, est.perDay, est.windowBuckets]) + '|' + JSON.stringify(apiPool);
-    if (key === lastPayloadKey) return;
+    var key = JSON.stringify(data, function (k, v) { return k === 'timestamp' ? 0 : v; });
+    if (key === lastPayloadKey) {
+      setText('lastRefreshed', 'Updated: ' + new Date(data.timestamp).toLocaleTimeString() + (data.stale ? ' (stale)' : ''));
+      return;
+    }
     lastPayloadKey = key;
 
     var income = apiAcc.income || {};
@@ -713,9 +805,18 @@
     document.addEventListener('mouseover', function (evt) {
       var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
       if (!btn) return;
+      if (btn === tipBtn && (infoTip || tipTimer)) return;
+      clearTipTimer();
+      tipBtn = btn;
       var tip = btn.getAttribute('data-tip');
-      if (!tip) return;
-      showInfoTip(btn, tip);
+      if (!tip) {
+        tipBtn = null;
+        return;
+      }
+      tipTimer = setTimeout(function () {
+        tipTimer = null;
+        showInfoTip(btn, tip);
+      }, 100);
     });
 
     document.addEventListener('focusin', function (evt) {
@@ -723,17 +824,28 @@
       if (!btn) return;
       var tip = btn.getAttribute('data-tip');
       if (!tip) return;
+      clearTipTimer();
+      tipBtn = btn;
       showInfoTip(btn, tip);
     });
 
     document.addEventListener('mouseout', function (evt) {
       var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-      if (btn) hideInfoTip();
+      if (!btn) return;
+      var rel = evt.relatedTarget;
+      if (rel && btn.contains && btn.contains(rel)) return;
+      if (btn !== tipBtn) return;
+      clearTipTimer();
+      tipBtn = null;
+      hideInfoTip();
     });
 
     document.addEventListener('focusout', function (evt) {
       var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-      if (btn) hideInfoTip();
+      if (!btn) return;
+      clearTipTimer();
+      tipBtn = null;
+      hideInfoTip();
     });
   }
 
@@ -771,8 +883,12 @@
     infoTip = null;
   }
 
-  if (el('walletTag')) {
-    el('walletTag').textContent = DEFAULT_WALLET ? ' · ' + shortWallet(DEFAULT_WALLET) : '';
+  var walletAddrNode = el('walletAddr');
+  if (walletAddrNode) walletAddrNode.textContent = DEFAULT_WALLET || '';
+  var walletBtn = el('walletCopy');
+  if (walletBtn) {
+    if (!DEFAULT_WALLET) walletBtn.style.display = 'none';
+    else walletBtn.addEventListener('click', copyWallet);
   }
   initChart();
   initInfoTips();

@@ -34,7 +34,7 @@
   --mono: 'JetBrains Mono', 'Consolas', monospace;
 
   --gap: 14px;
-  --pad: 20px;
+  --pad: 16px;
   --radius: 16px;
   --radius-sm: 10px;
   --radius-pill: 999px;
@@ -147,6 +147,67 @@ header {
   }
 }
 
+.brand-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.wallet-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 3px 0 0 -6px;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.4;
+  cursor: copy;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.wallet-copy:hover,
+.wallet-copy:focus-visible {
+  border-color: var(--border-strong);
+  background: rgba(var(--white-rgb), 0.04);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.wallet-addr {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.wallet-copy svg {
+  flex-shrink: 0;
+}
+
+.wallet-copy .ic-check {
+  display: none;
+  color: var(--green-bright);
+}
+
+.wallet-copy.copied {
+  border-color: rgba(var(--green-rgb), 0.4);
+  color: var(--green-bright);
+}
+
+.wallet-copy.copied .ic-check {
+  display: block;
+}
+
+.wallet-copy.copied .ic-copy {
+  display: none;
+}
+
 .header-pills {
   display: flex;
   flex-wrap: wrap;
@@ -191,6 +252,11 @@ header {
   background: rgba(var(--white-rgb), 0.10);
   border-color: rgba(var(--white-rgb), 0.30);
   color: var(--text-secondary);
+}
+
+#modeBadge {
+  min-width: 62px;
+  justify-content: center;
 }
 
 .price-pill {
@@ -242,6 +308,7 @@ header {
 .info-tip {
   position: fixed;
   z-index: 1000;
+  contain: layout;
   width: 240px;
   white-space: normal;
   background: var(--surface-2);
@@ -315,7 +382,7 @@ header {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 220px;
+  min-height: 200px;
 }
 
 .grid-4>.card>.card-header {
@@ -323,8 +390,8 @@ header {
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
-  min-height: 32px;
-  margin-bottom: 10px;
+  min-height: 28px;
+  margin-bottom: 8px;
   color: var(--text-secondary);
   font-size: var(--fs-label);
   font-weight: 500;
@@ -353,7 +420,7 @@ header {
   font-size: var(--fs-value);
   font-weight: 800;
   color: var(--text-emphasis);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   line-height: 1.15;
   letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
@@ -369,6 +436,10 @@ header {
 
 .metric-sub+.metric-sub {
   margin-top: 4px;
+}
+
+.metric-sub:empty {
+  display: none;
 }
 
 .metric-bar {
@@ -393,7 +464,7 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 10px 0 6px;
+  margin: 8px 0 5px;
 }
 
 .bar-row>.metric-bar {
@@ -431,6 +502,10 @@ header {
   padding: var(--pad);
   margin-bottom: var(--gap);
   contain: layout;
+}
+
+.comparison-section .table-wrapper {
+  min-height: 268px;
 }
 
 .insight-box {
@@ -644,6 +719,7 @@ tr:last-child td {
   transition: opacity 0.15s ease-out;
   opacity: 0;
   z-index: 50;
+  contain: layout;
   white-space: nowrap;
   width: max-content;
   text-align: center;
@@ -756,7 +832,7 @@ html {
 @media (max-width: 640px) {
   :root {
     --gap: 12px;
-    --pad: 14px;
+    --pad: 12px;
     --fs-value: clamp(16px, 4.8vw, 22px);
     --fs-section: 15px;
     --fs-label: 10.5px;
@@ -772,9 +848,9 @@ html {
   }
 
   .grid-4>.card>.card-header {
-    min-height: 28px;
+    min-height: 24px;
     letter-spacing: 0.5px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .metric-bar {
@@ -782,7 +858,7 @@ html {
   }
 
   .grid-4>.card {
-    min-height: 190px;
+    min-height: 188px;
   }
 
   th,
@@ -796,6 +872,10 @@ html {
 
   .chart-container {
     height: 220px;
+  }
+
+  .comparison-section .table-wrapper {
+    min-height: 206px;
   }
 
   .chart-tooltip {
@@ -855,14 +935,14 @@ html {
 
 @media (max-width: 360px) {
   :root {
-    --pad: 12px;
+    --pad: 10px;
     --fs-value: clamp(15px, 5.2vw, 17px);
     --fs-label: 10px;
     --fs-sub: 11px;
   }
 
   .grid-4>.card {
-    min-height: 204px;
+    min-height: 190px;
   }
 
   .grid-4 {
