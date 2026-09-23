@@ -256,7 +256,7 @@
       var pointY = padding.top + h - (amount / maxVal) * h;
 
       if (tooltip) {
-        var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Hour ' + (idx + 1);
+        var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : 'Hour ' + (idx + 1);
         var usdStr = (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
         var partStr = item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
         tooltip.innerHTML = '<div class="tt-time">' + dt + '</div>' +
@@ -657,7 +657,7 @@
   }
 
   function paymentRow(pay) {
-    var dt = new Date(pay.timestamp * 1000).toLocaleString();
+    var dt = new Date(pay.timestamp * 1000).toLocaleString([], { month: 'numeric', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     return '<tr>' +
       '<td>' + dt + '</td>' +
       '<td style="color: var(--green-bright); font-weight: 700;">' + (parseFloat(pay.amount) || 0).toFixed(4) + ' ' + (lastTicker || 'VTC') + '</td>' +
@@ -673,11 +673,10 @@
     var apiPool = data.api.pool || {};
     var est = data.estimated;
     var payout = data.payout || {};
-    var analytics = data.analytics || {};
 
     var key = JSON.stringify(data, function (k, v) { return k === 'timestamp' ? 0 : v; });
     if (key === lastPayloadKey) {
-      setText('lastRefreshed', 'Updated: ' + new Date(data.timestamp).toLocaleTimeString() + (data.stale ? ' (stale)' : ''));
+      setText('lastRefreshed', 'Updated: ' + new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + (data.stale ? ' (stale)' : ''));
       return;
     }
     lastPayloadKey = key;
@@ -687,7 +686,7 @@
     var counts = apiAcc.workerCounts || {};
 
     var modeBadge = el('modeBadge');
-    var updated = new Date(data.timestamp).toLocaleTimeString();
+    var updated = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     setText('lastRefreshed', 'Updated: ' + updated + (data.stale ? ' (stale)' : ''));
     if (modeBadge) {
       if (data.stale) { modeBadge.textContent = 'STALE'; modeBadge.className = 'badge badge-stale'; }
@@ -764,23 +763,15 @@
     var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
     setText('s-net-merge', merge);
 
-    setText('insightBox', analytics.summary || 'No data');
-
     var cmp = el('comparisonTableBody');
-    if (cmp && analytics.comparisons) {
+    if (cmp && data.comparisons) {
       var html = '';
-      analytics.comparisons.forEach(function (c) {
-        var statusClass = '';
-        if (c.status === 'Within 5%') statusClass = 'badge-live';
-        else if (c.status === 'Outside 5%') statusClass = 'badge-stale';
-        else if (c.status === 'Insufficient data') statusClass = 'badge-neutral';
-        var status = '<span class="badge ' + (statusClass || 'badge-live') + '">' + esc(c.status) + '</span>';
+      data.comparisons.forEach(function (c) {
         html += '<tr>' +
           '<td style="font-weight: 600;">' + esc(c.label) + '</td>' +
           '<td style="color: #38bdf8;">' + esc(c.api) + '</td>' +
           '<td style="color: #34d399; font-weight: 700;">' + esc(c.estimated) + '</td>' +
-          '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td>' +
-          '<td>' + status + '</td></tr>';
+          '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td></tr>';
       });
       cmp.innerHTML = html;
     }
