@@ -263,8 +263,9 @@
           '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + '</div>' +
           usdStr + partStr;
         var ttHalf = tooltip.offsetWidth / 2 + 8;
-        tooltip.style.left = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX)) + 'px';
-        tooltip.style.top = Math.max(25, pointY) + 'px';
+        var tipX = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX));
+        var tipY = Math.max(25, pointY);
+        tooltip.style.transform = 'translate(' + tipX + 'px,' + tipY + 'px) translate(-50%, calc(-100% - 14px))';
         tooltip.classList.add('active');
         lastTipIdx = idx;
       }

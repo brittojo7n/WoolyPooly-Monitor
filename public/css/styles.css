@@ -494,6 +494,13 @@ header {
   justify-content: space-between;
 }
 
+#lastRefreshed {
+  display: inline-block;
+  min-width: 19ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 
 .comparison-section {
   background: var(--surface-1);
@@ -506,6 +513,30 @@ header {
 
 .comparison-section .table-wrapper {
   min-height: 268px;
+}
+
+.comparison-section table {
+  table-layout: fixed;
+}
+
+.comparison-section th:nth-child(1) {
+  width: 12%;
+}
+
+.comparison-section th:nth-child(2) {
+  width: 20%;
+}
+
+.comparison-section th:nth-child(3) {
+  width: 20%;
+}
+
+.comparison-section th:nth-child(4) {
+  width: 26%;
+}
+
+.comparison-section th:nth-child(5) {
+  width: 22%;
 }
 
 .insight-box {
@@ -707,6 +738,8 @@ tr:last-child td {
 
 .chart-tooltip {
   position: absolute;
+  left: 0;
+  top: 0;
   pointer-events: none;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -722,6 +755,7 @@ tr:last-child td {
   contain: layout;
   white-space: nowrap;
   width: max-content;
+  min-width: 150px;
   text-align: center;
 }
 
@@ -876,6 +910,10 @@ html {
 
   .comparison-section .table-wrapper {
     min-height: 206px;
+  }
+
+  .comparison-section table {
+    min-width: 600px;
   }
 
   .chart-tooltip {
