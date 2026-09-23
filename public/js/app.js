@@ -639,10 +639,8 @@
 
     var estHour = num(est.perHour);
     var estDay = num(est.perDay);
-    var estN = Math.floor(num(est.productiveBuckets));
     setText('v-est', estHour.toFixed(4) + ' ' + ticker + '/h');
     setText('s-est-d', estDay.toFixed(4) + ' ' + ticker + '/d');
-    setText('s-est-basis', estN > 0 ? 'Latest ' + estN + ' productive bucket' + (estN === 1 ? '' : 's') : 'Insufficient data');
     setText('s-est-usd', usd(estDay) + ' USD');
 
     var apiHour = num(income.hour);
