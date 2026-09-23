@@ -475,13 +475,6 @@ header {
   justify-content: space-between;
 }
 
-#lastRefreshed {
-  display: inline-block;
-  min-width: 19ch;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 
 .comparison-section {
   background: var(--surface-1);

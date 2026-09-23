@@ -675,10 +675,7 @@
     var payout = data.payout || {};
 
     var key = JSON.stringify(data, function (k, v) { return k === 'timestamp' ? 0 : v; });
-    if (key === lastPayloadKey) {
-      setText('lastRefreshed', 'Updated: ' + new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + (data.stale ? ' (stale)' : ''));
-      return;
-    }
+    if (key === lastPayloadKey) return;
     lastPayloadKey = key;
 
     var income = apiAcc.income || {};
@@ -686,8 +683,6 @@
     var counts = apiAcc.workerCounts || {};
 
     var modeBadge = el('modeBadge');
-    var updated = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    setText('lastRefreshed', 'Updated: ' + updated + (data.stale ? ' (stale)' : ''));
     if (modeBadge) {
       if (data.stale) { modeBadge.textContent = 'STALE'; modeBadge.className = 'badge badge-stale'; }
       else { modeBadge.textContent = 'LIVE'; modeBadge.className = 'badge badge-live'; }
@@ -751,7 +746,8 @@
 
     var poolEff = apiPool.poolEffortPct;
     setText('v-peff', poolEff != null ? poolEff.toFixed(1) + '%' : 'N/A');
-    setText('s-peff-pool', 'Pool: ' + formatHashrateClient(apiPool.poolHashrate || 0) + ' (' + (apiPool.poolMiners != null ? apiPool.poolMiners : '--') + ' miners)');
+    setText('s-peff-pool', 'Pool: ' + formatHashrateClient(apiPool.poolHashrate || 0));
+    setText('s-peff-miners', apiPool.poolMiners != null ? apiPool.poolMiners + ' miners' : '-- miners');
 
     var ueff = apiAcc.userEffortPct;
     setText('v-ueff', ueff != null ? ueff.toFixed(1) + '%' : 'N/A');
