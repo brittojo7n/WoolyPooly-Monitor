@@ -67,7 +67,7 @@ A window is only shown once a snapshot at or before `now − period` exists; unt
 
 ## Payout ETA
 
-The "Next Payout" estimate uses the **WoolyPooly API 24h income rate** (API 24h ÷ 24). The minimum payout threshold comes from the pool stats endpoint (`minPay`); the `PAYOUT_THRESHOLD` env var is only a fallback when the endpoint is unreachable.
+The "Next Payout" estimate uses the **WoolyPooly API 24h income rate** (API 24h ÷ 24). The payout threshold is the greater of the pool's minimum payout (`minPay` from the pool stats endpoint) and the `PAYOUT_THRESHOLD` env var (your configured payout threshold on the pool); when the endpoint is unreachable, `PAYOUT_THRESHOLD` is used alone. The UI displays the effective threshold and which source set it.
 
 ## Mining context
 
