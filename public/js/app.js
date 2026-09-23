@@ -133,21 +133,8 @@
     if (h >= 1e12) return (h / 1e12).toFixed(2) + ' TH/s';
     if (h >= 1e9) return (h / 1e9).toFixed(2) + ' GH/s';
     if (h >= 1e6) return (h / 1e6).toFixed(2) + ' MH/s';
-    if (h >= 1e3) return (h / 1e3).toFixed(2) + ' KH/s';
+    if (h >= 1e3) return (h / 1e3).toFixed(2) + ' kH/s';
     return h.toFixed(2) + ' H/s';
-  }
-
-  function hashrateTrendPct(history) {
-    if (!history || history.length < 2) return null;
-    var first = null, last = null;
-    for (var i = 0; i < history.length; i++) {
-      if (history[i].hr > 0) { first = history[i].hr; break; }
-    }
-    for (var j = history.length - 1; j >= 0; j--) {
-      if (history[j].hr > 0) { last = history[j].hr; break; }
-    }
-    if (first == null || last == null || first <= 0) return null;
-    return ((last - first) / first) * 100;
   }
 
   function initChart() {
@@ -610,7 +597,7 @@
     lastTicker = ticker;
     setText('v-unpaid', balance.toFixed(4) + ' ' + ticker);
     setText('s-unpaid-usd', usd(balance) + ' USD');
-    var minPay = payout.threshold != null ? payout.threshold : payout.minPay;
+    var minPay = payout.threshold;
     var payPct = (minPay > 0) ? Math.min(100, (balance / minPay) * 100) : null;
     setText('s-unpaid-pct', payPct != null
       ? payPct.toFixed(0) + '% of ' + minPay + ' ' + ticker + ' payout threshold'
@@ -627,46 +614,25 @@
     setText('s-paid-usd', usd(paid) + ' USD');
     setText('s-paid-today', 'Today: ' + num(apiAcc.todayPaid).toFixed(4) + ' ' + ticker);
 
+    var obsHour = num(obs.earnings.hour);
     var obs24 = num(obs.earnings.twentyFourH);
-    setText('v-obs24', obs24.toFixed(4) + ' ' + ticker);
-    setText('s-obs24-usd', usd(obs24) + ' USD');
+    setText('v-obs', obsHour.toFixed(4) + ' ' + ticker + '/h');
+    setText('s-obs-d', obs24.toFixed(4) + ' ' + ticker + '/d');
+    setText('s-obs-usd', usd(obs24) + ' USD');
+
+    var apiHour = num(income.hour);
     var api24 = num(income.day);
-    if (api24 > 0) {
-      var d24 = obs24 - api24;
-      var dpct = (d24 / api24) * 100;
-      setText('s-obs24-delta', 'API: ' + api24.toFixed(4) + ' · Δ ' + (d24 >= 0 ? '+' : '') + d24.toFixed(4) + ' (' + (d24 >= 0 ? '+' : '') + dpct.toFixed(1) + '%)');
-    } else {
-      setText('s-obs24-delta', 'API: n/a · Δ --');
-    }
-
-    setText('v-earn', api24.toFixed(4) + ' ' + ticker);
-    setText('s-earn-usd', usd(api24) + ' USD');
-
-    var theoryDaily = num(data.theoretical.daily);
-    if (obs24 > 0 && theoryDaily != null && theoryDaily > 0) {
-      var ratioPct = (obs24 / theoryDaily) * 100;
-      setText('v-luck', ratioPct.toFixed(0) + '%');
-      setText('s-luck-theory', 'Theory: ' + theoryDaily.toFixed(2) + ' / day · ratio ' + ratioPct.toFixed(1) + '%');
-    } else {
-      setText('v-luck', 'N/A');
-      setText('s-luck-theory', 'Theory: ' + (theoryDaily != null && theoryDaily > 0 ? theoryDaily.toFixed(2) + ' / day' : 'N/A') + (obs24 > 0 ? '' : ' · no observed 24h'));
-    }
+    setText('v-api', apiHour.toFixed(4) + ' ' + ticker + '/h');
+    setText('s-api-d', api24.toFixed(4) + ' ' + ticker + '/d');
+    setText('s-api-usd', usd(api24) + ' USD');
 
     var liveHr = num(hash.current);
     var h6 = num(hash.sixH);
     var h24 = num(hash.day);
     setText('v-hr', formatHashrateClient(liveHr));
 
-    var trendStr = '';
-    var hrHist = data.hashrateHistory || [];
-    if (hrHist && hrHist.length > 1) {
-      var t = hashrateTrendPct(hrHist);
-      if (t != null) trendStr = ' · 24h ' + (t >= 0 ? '\u2191' : '\u2193') + Math.abs(t).toFixed(1) + '%';
-    }
-    setText('s-hr-stab', 'Live (kH/s): ' + (liveHr >= 1000 ? (liveHr / 1000).toFixed(2) : 'n/a') + trendStr);
-
-    setText('v-avg', formatHashrateClient(h24));
-    setText('s-avg-6h', '6h avg: ' + (h6 > 0 ? formatHashrateClient(h6) : '--'));
+    setText('s-hr-6h', '6H: ' + (h6 > 0 ? formatHashrateClient(h6) : '--'));
+    setText('s-hr-24h', '24H: ' + (h24 > 0 ? formatHashrateClient(h24) : '--'));
 
     var poolEff = apiPool.poolEffortPct;
     setText('v-peff', poolEff != null ? poolEff.toFixed(1) + '%' : 'N/A');
@@ -682,16 +648,14 @@
     var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
     setText('s-net-merge', merge);
 
-    var thr = payout.threshold != null ? payout.threshold : payout.minPay;
-    var thrTag = payout.thresholdSource === 'config' ? ' (PAYOUT_THRESHOLD)'
-      : (payout.thresholdSource === 'woolypooly-api' ? ' (pool min)' : '');
+    var thr = payout.threshold;
     if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
       var eta = payout.remaining / payout.ratePerHour;
       setText('v-pay', formatEta(eta));
-      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · threshold ' + thr + ' ' + ticker + thrTag);
+      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · threshold ' + thr + ' ' + ticker);
     } else if (payout.remaining != null && payout.remaining <= 0) {
       setText('v-pay', 'Due');
-      setText('s-pay-need', 'Ready for payout · threshold ' + thr + ' ' + ticker + thrTag);
+      setText('s-pay-need', 'Ready for payout · threshold ' + thr + ' ' + ticker);
     } else {
       setText('v-pay', '--');
       setText('s-pay-need', 'Based on API 24h rate');
@@ -712,7 +676,6 @@
           '<td style="color: #38bdf8;">' + esc(c.api) + '</td>' +
           '<td style="color: #34d399; font-weight: 700;">' + esc(c.observed) + '</td>' +
           '<td style="color: #e0a82e;">' + esc(c.projected == null ? '—' : c.projected) + '</td>' +
-          '<td style="color: #60a5fa;">' + esc(c.theory == null ? '—' : c.theory) + '</td>' +
           '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td>' +
           '<td>' + status + '</td></tr>';
       });

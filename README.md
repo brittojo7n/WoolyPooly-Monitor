@@ -2,14 +2,13 @@
 
 A lightweight, real-time web dashboard for monitoring your WoolyPooly mining statistics — hashrate, earnings, balances, and worker telemetry — served locally over SSE. No framework, no database: a single Node process with a fast static frontend.
 
-The dashboard makes a **strict separation** between four kinds of numbers (never mixed):
+The dashboard makes a **strict separation** between three kinds of numbers (never mixed):
 
 | Kind | Source | Meaning |
 | --- | --- | --- |
 | **WoolyPooly API** | raw API response, passed through unchanged | "What does the pool currently say?" e.g. `income_Hour / HalfDay / Day / Week / Month`, balances, hashrates, effort |
 | **Observed** | account-derived accounting | built from the pool's per-hour credited buckets (`minerProfitGraph`) for 1h–24h, and from local telemetry history (`E(t) = paid + balance + immature`) for 7d/30d. Payout-resistant. |
 | **Projected** | WoolyPooly API 24h income × time | clearly labelled "Projected", never shown as Actual/Observed |
-| **Theoretical** | statistical expectation | worker hashrate ÷ network hashrate × network coins/day × (1 − fee), shown as N/A when inputs are missing |
 
 ## Requirements
 
@@ -38,7 +37,7 @@ The dashboard makes a **strict separation** between four kinds of numbers (never
 - `index.js` — HTTP server + SSE stream, aggregates pool + CoinGecko data
 - `lib/config.js` — env loading, coin/pool IDs, wallet detection, `isValidCoin`, fallback `PAYOUT_THRESHOLD`
 - `lib/woolypooly.js` — WoolyPooly & CoinGecko API client (fetch helpers + price cache)
-- `lib/metrics.js` — data model: API / Observed / Projected / Theoretical separation
+- `lib/metrics.js` — data model: API / Observed / Projected separation
 - `lib/history.js` — local telemetry store (`data/telemetry.json`, 15-min snapshots, 31-day retention)
 - `lib/router.js` — routing, feed cache, SSE broadcast, debug endpoints
 - `lib/ui.js` — HTML page rendering
@@ -67,7 +66,7 @@ A window is only shown once a snapshot at or before `now − period` exists; unt
 
 ## Payout ETA
 
-The "Next Payout" estimate uses the **WoolyPooly API 24h income rate** (API 24h ÷ 24). The payout threshold is the greater of the pool's minimum payout (`minPay` from the pool stats endpoint) and the `PAYOUT_THRESHOLD` env var (your configured payout threshold on the pool); when the endpoint is unreachable, `PAYOUT_THRESHOLD` is used alone. The UI displays the effective threshold and which source set it.
+The "Next Payout" estimate uses the **WoolyPooly API 24h income rate** (API 24h ÷ 24). The payout threshold is the greater of the pool's minimum payout (`minPay` from the pool stats endpoint) and the `PAYOUT_THRESHOLD` env var (your configured payout threshold on the pool); when the endpoint is unreachable, `PAYOUT_THRESHOLD` is used alone. The UI displays the effective threshold.
 
 ## Mining context
 
