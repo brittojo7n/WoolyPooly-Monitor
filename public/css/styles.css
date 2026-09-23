@@ -286,7 +286,7 @@ header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: help;
+  cursor: default;
   flex-shrink: 0;
   opacity: 0.85;
   transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease;
