@@ -144,3 +144,20 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# AI tools
+.kilo/
+.claude/
+.agent/
+.agent-manager.json
+
+# OS
+.DS_Store
+Thumbs.db
