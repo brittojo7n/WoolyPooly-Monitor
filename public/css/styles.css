@@ -598,6 +598,8 @@ tr:last-child td {
   height: 100%;
   display: block;
   cursor: crosshair;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chart-tooltip {
@@ -756,7 +758,11 @@ html {
   }
 
   .chart-tooltip {
-    display: none;
+    max-width: min(240px, calc(100vw - 140px));
+    white-space: normal;
+    text-align: center;
+    font-size: 11px;
+    padding: 8px 12px;
   }
 
   .page-btn {

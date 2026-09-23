@@ -8,6 +8,7 @@
   var lastTicker = 'VTC';
   var lastUsdPrice = 0;
   var hoveredIndex = -1;
+  var touchPinned = -1;
   var lastPayloadKey = null;
 
   var pageState = {
@@ -153,6 +154,7 @@
 
       if (x < padding.left || x > rect.width - padding.right) {
         hoveredIndex = -1;
+        touchPinned = -1;
         if (tooltip) tooltip.classList.remove('active');
         markChartDirty();
         return;
@@ -160,6 +162,14 @@
 
       var step = w / (count - 1 || 1);
       var idx = Math.max(0, Math.min(count - 1, Math.round((x - padding.left) / step)));
+      if (evt.type === 'touchstart' && idx === touchPinned) {
+        touchPinned = -1;
+        hoveredIndex = -1;
+        if (tooltip) tooltip.classList.remove('active');
+        markChartDirty();
+        return;
+      }
+      if (evt.touches) touchPinned = idx;
       hoveredIndex = idx;
 
       var item = lastGraphData[idx];
@@ -176,7 +186,8 @@
         tooltip.innerHTML = '<div class="tt-time">' + dt + '</div>' +
           '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + usdStr + '</div>' +
           partStr;
-        tooltip.style.left = Math.max(90, Math.min(rect.width - 90, pointX)) + 'px';
+        var ttHalf = tooltip.offsetWidth / 2 + 8;
+        tooltip.style.left = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX)) + 'px';
         tooltip.style.top = Math.max(25, pointY) + 'px';
         tooltip.classList.add('active');
       }
@@ -191,11 +202,14 @@
     });
     chart.addEventListener('touchstart', handlePointer, { passive: true });
     chart.addEventListener('touchmove', handlePointer, { passive: true });
-    chart.addEventListener('touchend', function () {
-      hoveredIndex = -1;
-      if (tooltip) tooltip.classList.remove('active');
-      markChartDirty();
-    });
+    document.addEventListener('touchstart', function (evt) {
+      if (evt.target !== chart && touchPinned !== -1) {
+        touchPinned = -1;
+        hoveredIndex = -1;
+        if (tooltip) tooltip.classList.remove('active');
+        markChartDirty();
+      }
+    }, { passive: true });
 
     window.addEventListener('resize', function () {
       if (lastGraphData) markChartDirty();
