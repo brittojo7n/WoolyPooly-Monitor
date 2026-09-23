@@ -1,8 +1,9 @@
 /**
  * bootstrap.js - Application bootstrap script
  *
- * Purpose: Fetch, hard-reset to origin/main if behind, clean untracked files,
- * then launch index.js. Local changes are discarded on execution.
+ * WARNING: running this NUKES your work. It force-checkouts main, hard-resets
+ * to origin/main and deletes all untracked files, then launches index.js.
+ * Any uncommitted change is destroyed permanently.
  *
  * For development, run `node index.js` directly.
  */

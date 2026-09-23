@@ -8,6 +8,9 @@
   var lastTicker = 'VTC';
   var lastUsdPrice = 0;
   var hoveredIndex = -1;
+  var touchPinned = -1;
+  var lastTipIdx = -1;
+  var lastGraphMax = 0.0001;
   var lastPayloadKey = null;
 
   var pageState = {
@@ -21,69 +24,67 @@
 
   var chartDirty = false;
   var infoTip = null;
+  var tipTimer = null;
+  var tipBtn = null;
 
-  window.__perf = { LCP: null, CLS: 0, INP: null, events: [] };
-
-  function reportPerf() {
-    var out = {
-      LCP_ms: window.__perf.LCP != null ? Math.round(window.__perf.LCP) : null,
-      LCP: window.__perf.LCP != null ? (window.__perf.LCP <= 2500 ? 'good' : window.__perf.LCP <= 4000 ? 'needs-improvement' : 'poor') : null,
-      CLS: Number(window.__perf.CLS.toFixed(4)),
-      CLS_rating: window.__perf.CLS <= 0.1 ? 'good' : window.__perf.CLS <= 0.25 ? 'needs-improvement' : 'poor',
-      INP_ms: window.__perf.INP != null ? Math.round(window.__perf.INP) : null,
-      INP: window.__perf.INP != null ? (window.__perf.INP <= 200 ? 'good' : window.__perf.INP <= 500 ? 'needs-improvement' : 'poor') : null
-    };
-    console.info('[CWV] %o', out);
-    return out;
-  }
-  window.__perf.report = reportPerf;
-
-  if (window.PerformanceObserver) {
-    try {
-      new PerformanceObserver(function (list) {
-        for (var i = 0; i < list.getEntries().length; i++) {
-          var e = list.getEntries()[i];
-          if (e.entryType === 'largest-contentful-paint') {
-            window.__perf.LCP = e.startTime;
-          } else if (e.entryType === 'layout-shift' && !e.hadRecentInput) {
-            window.__perf.CLS += e.value;
-          } else if (e.entryType === 'event') {
-            window.__perf.INP = e.duration;
-          }
-        }
-      }).observe({ type: 'largest-contentful-paint', buffered: true });
-
-      new PerformanceObserver(function (list) {
-        for (var i = 0; i < list.getEntries().length; i++) {
-          var e = list.getEntries()[i];
-          if (!e.hadRecentInput) window.__perf.CLS += e.value;
-        }
-      }).observe({ type: 'layout-shift', buffered: true });
-
-      if (PerformanceObserver.supportedEntryTypes && PerformanceObserver.supportedEntryTypes.indexOf('event') !== -1) {
-        new PerformanceObserver(function (list) {
-          for (var i = 0; i < list.getEntries().length; i++) {
-            var e = list.getEntries()[i];
-            if (e.interactionId) window.__perf.INP = e.duration;
-          }
-        }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
-      }
-    } catch (err) { }
-  }
-
-  window.addEventListener('load', function () {
-    setTimeout(reportPerf, 1500);
-  });
-
-  function shortWallet(w) {
-    var s = String(w || '');
-    return s.length > 16 ? s.slice(0, 10) + '\u2026' + s.slice(-6) : s;
+  function clearTipTimer() {
+    if (tipTimer) {
+      clearTimeout(tipTimer);
+      tipTimer = null;
+    }
   }
 
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  var walletCopyTimer = null;
+
+  function copyWallet() {
+    var btn = el('walletCopy');
+    function done(ok) {
+      if (!btn) return;
+      if (btn.classList.toggle) btn.classList.toggle('copied', !!ok);
+      else if (ok) btn.classList.add('copied');
+      if (walletCopyTimer) clearTimeout(walletCopyTimer);
+      walletCopyTimer = setTimeout(function () {
+        btn.classList.remove('copied');
+      }, 1200);
+    }
+    function legacyCopy() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = DEFAULT_WALLET;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try {
+          ok = document.execCommand('copy');
+        } catch (ignored) {
+          ok = false;
+        }
+        document.body.removeChild(ta);
+        done(!!ok);
+      } catch (err) {
+        done(false);
+      }
+    }
+    if (!DEFAULT_WALLET) {
+      done(false);
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(DEFAULT_WALLET).then(function () {
+        done(true);
+      }, legacyCopy);
+    } else {
+      legacyCopy();
+    }
   }
 
   function el(id) {
@@ -133,21 +134,8 @@
     if (h >= 1e12) return (h / 1e12).toFixed(2) + ' TH/s';
     if (h >= 1e9) return (h / 1e9).toFixed(2) + ' GH/s';
     if (h >= 1e6) return (h / 1e6).toFixed(2) + ' MH/s';
-    if (h >= 1e3) return (h / 1e3).toFixed(2) + ' KH/s';
+    if (h >= 1e3) return (h / 1e3).toFixed(2) + ' kH/s';
     return h.toFixed(2) + ' H/s';
-  }
-
-  function hashrateTrendPct(history) {
-    if (!history || history.length < 2) return null;
-    var first = null, last = null;
-    for (var i = 0; i < history.length; i++) {
-      if (history[i].hr > 0) { first = history[i].hr; break; }
-    }
-    for (var j = history.length - 1; j >= 0; j--) {
-      if (history[j].hr > 0) { last = history[j].hr; break; }
-    }
-    if (first == null || last == null || first <= 0) return null;
-    return ((last - first) / first) * 100;
   }
 
   function initChart() {
@@ -155,17 +143,39 @@
     tooltip = document.getElementById('chartTooltip');
     if (!chart) return;
 
-    function handlePointer(evt) {
+    var pointerQueued = false;
+    var pointerX = 0;
+    var pointerType = '';
+    var pointerIsTouch = false;
+
+    function queuePointer(evt) {
+      pointerX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      pointerType = evt.type;
+      pointerIsTouch = !!evt.touches;
+      if (!pointerQueued) {
+        pointerQueued = true;
+        requestAnimationFrame(runPointer);
+      }
+    }
+
+    function runPointer() {
+      pointerQueued = false;
+      handlePointer(pointerX, pointerType, pointerIsTouch);
+    }
+
+    function handlePointer(clientX, type, isTouch) {
       if (!lastGraphData || lastGraphData.length === 0) return;
       var rect = chart.getBoundingClientRect();
-      var clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
       var x = clientX - rect.left;
       var padding = { top: 20, right: 20, bottom: 35, left: 60 };
       var w = rect.width - padding.left - padding.right;
       var count = lastGraphData.length;
 
       if (x < padding.left || x > rect.width - padding.right) {
+        if (hoveredIndex === -1 && touchPinned === -1) return;
         hoveredIndex = -1;
+        touchPinned = -1;
+        lastTipIdx = -1;
         if (tooltip) tooltip.classList.remove('active');
         markChartDirty();
         return;
@@ -173,42 +183,65 @@
 
       var step = w / (count - 1 || 1);
       var idx = Math.max(0, Math.min(count - 1, Math.round((x - padding.left) / step)));
+      if (type === 'touchstart' && idx === touchPinned) {
+        touchPinned = -1;
+        hoveredIndex = -1;
+        lastTipIdx = -1;
+        if (tooltip) tooltip.classList.remove('active');
+        markChartDirty();
+        return;
+      }
+      if (idx === hoveredIndex && idx === lastTipIdx) return;
+      if (isTouch) touchPinned = idx;
       hoveredIndex = idx;
 
       var item = lastGraphData[idx];
       var amount = parseFloat(item.amount) || 0;
       var pointX = padding.left + idx * step;
-      var maxVal = Math.max.apply(null, lastGraphData.map(function (g) { return parseFloat(g.amount) || 0; }).concat([0.0001])) * 1.15;
+      var maxVal = lastGraphMax;
       var h = rect.height - padding.top - padding.bottom;
       var pointY = padding.top + h - (amount / maxVal) * h;
 
       if (tooltip) {
-        var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Hour ' + (idx + 1);
-        var usdStr = (amount * lastUsdPrice) > 0 ? ' ($' + (amount * lastUsdPrice).toFixed(4) + ' USD)' : '';
+        var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : 'Hour ' + (idx + 1);
+        var usdStr = (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
         var partStr = item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
         tooltip.innerHTML = '<div class="tt-time">' + dt + '</div>' +
-          '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + usdStr + '</div>' +
-          partStr;
-        tooltip.style.left = Math.max(90, Math.min(rect.width - 90, pointX)) + 'px';
-        tooltip.style.top = Math.max(25, pointY) + 'px';
+          '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + '</div>' +
+          usdStr + partStr;
+        var ttHalf = tooltip.offsetWidth / 2 + 8;
+        var tipX = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX));
+        var tipY = Math.max(25, pointY);
+        tooltip.style.transform = 'translate(' + tipX + 'px,' + tipY + 'px) translate(-50%, calc(-100% - 14px))';
         tooltip.classList.add('active');
+        lastTipIdx = idx;
       }
       markChartDirty();
     }
 
-    chart.addEventListener('mousemove', handlePointer);
+    chart.addEventListener('mousemove', queuePointer);
     chart.addEventListener('mouseleave', function () {
       hoveredIndex = -1;
+      lastTipIdx = -1;
       if (tooltip) tooltip.classList.remove('active');
       markChartDirty();
     });
-    chart.addEventListener('touchstart', handlePointer, { passive: true });
-    chart.addEventListener('touchmove', handlePointer, { passive: true });
-    chart.addEventListener('touchend', function () {
-      hoveredIndex = -1;
-      if (tooltip) tooltip.classList.remove('active');
-      markChartDirty();
-    });
+    chart.addEventListener('touchstart', queuePointer, { passive: true });
+    chart.addEventListener('touchmove', queuePointer, { passive: true });
+    document.addEventListener('touchstart', function (evt) {
+      if (evt.target !== chart && touchPinned !== -1) {
+        touchPinned = -1;
+        hoveredIndex = -1;
+        lastTipIdx = -1;
+        if (tooltip) tooltip.classList.remove('active');
+        markChartDirty();
+      }
+      if (!evt.target.closest || !evt.target.closest('.info')) {
+        clearTipTimer();
+        tipBtn = null;
+        hideInfoTip();
+      }
+    }, { passive: true });
 
     window.addEventListener('resize', function () {
       if (lastGraphData) markChartDirty();
@@ -248,8 +281,7 @@
     var w = rect.width - padding.left - padding.right;
     var h = rect.height - padding.top - padding.bottom;
     var amounts = lastGraphData.map(function (g) { return parseFloat(g.amount) || 0; });
-    var rawMax = Math.max.apply(null, amounts.concat([0.0001]));
-    var maxVal = rawMax * 1.15;
+    var maxVal = lastGraphMax;
     var count = lastGraphData.length;
     var step = w / (count - 1 || 1);
 
@@ -362,6 +394,13 @@
     lastGraphData = graph || [];
     lastTicker = ticker || 'VTC';
     lastUsdPrice = usdPrice || 0;
+    lastTipIdx = -1;
+    var m = 0.0001;
+    for (var i = 0; i < lastGraphData.length; i++) {
+      var v = parseFloat(lastGraphData[i].amount) || 0;
+      if (v > m) m = v;
+    }
+    lastGraphMax = m * 1.15;
     markChartDirty();
   }
 
@@ -565,7 +604,7 @@
   }
 
   function paymentRow(pay) {
-    var dt = new Date(pay.timestamp * 1000).toLocaleString();
+    var dt = new Date(pay.timestamp * 1000).toLocaleString([], { month: 'numeric', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     return '<tr>' +
       '<td>' + dt + '</td>' +
       '<td style="color: var(--green-bright); font-weight: 700;">' + (parseFloat(pay.amount) || 0).toFixed(4) + ' ' + (lastTicker || 'VTC') + '</td>' +
@@ -573,18 +612,16 @@
   }
 
   function updateUI(data) {
-    if (!data || !data.api || !data.api.account || !data.observed) return;
+    if (!data || !data.api || !data.api.account || !data.estimated) return;
 
     var ticker = data.coinTicker || 'VTC';
     var price = num(data.usdPrice);
     var apiAcc = data.api.account;
     var apiPool = data.api.pool || {};
-    var obs = data.observed;
+    var est = data.estimated;
     var payout = data.payout || {};
-    var analytics = data.analytics || {};
 
-    var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(apiAcc.income) + '|' +
-      JSON.stringify(obs.earnings) + '|' + JSON.stringify(apiPool);
+    var key = JSON.stringify(data, function (k, v) { return k === 'timestamp' ? 0 : v; });
     if (key === lastPayloadKey) return;
     lastPayloadKey = key;
 
@@ -593,8 +630,6 @@
     var counts = apiAcc.workerCounts || {};
 
     var modeBadge = el('modeBadge');
-    var updated = new Date(data.timestamp).toLocaleTimeString();
-    setText('lastRefreshed', 'Updated: ' + updated + (data.stale ? ' (stale)' : ''));
     if (modeBadge) {
       if (data.stale) { modeBadge.textContent = 'STALE'; modeBadge.className = 'badge badge-stale'; }
       else { modeBadge.textContent = 'LIVE'; modeBadge.className = 'badge badge-live'; }
@@ -608,72 +643,62 @@
     var paid = num(apiAcc.paid);
 
     lastTicker = ticker;
-    setText('v-unpaid', balance.toFixed(4) + ' ' + ticker);
-    setText('s-unpaid-usd', usd(balance) + ' USD');
-    var minPay = payout.threshold != null ? payout.threshold : payout.minPay;
-    var payPct = (minPay > 0) ? Math.min(100, (balance / minPay) * 100) : null;
-    setText('s-unpaid-pct', payPct != null
-      ? payPct.toFixed(0) + '% of ' + minPay + ' ' + ticker + ' payout threshold'
-      : 'payout threshold n/a');
-    var payBar = el('s-unpaid-bar-fill');
-    if (payBar) {
-      payBar.style.transform = 'scaleX(' + ((payPct != null ? payPct : 0) / 100) + ')';
+    var totalBal = balance + immature;
+    setText('v-bal', totalBal.toFixed(4) + ' ' + ticker);
+    setText('s-bal-usd', usd(totalBal) + ' USD');
+    var thr = payout.threshold;
+    if (thr > 0) {
+      var balPct = Math.min(100, (balance / thr) * 100);
+      setText('s-bal-pct', balPct.toFixed(0) + '%');
+      var balBar = el('s-bal-bar-fill');
+      if (balBar) balBar.style.transform = 'scaleX(' + (balPct / 100) + ')';
+      if (payout.remaining != null && payout.remaining > 0) {
+        setText('s-bal-need', payout.remaining.toFixed(4) + ' ' + ticker + ' more to ' + thr + ' ' + ticker + ' payout');
+      } else {
+        setText('s-bal-need', 'Ready for payout');
+      }
+    } else {
+      setText('s-bal-pct', '--');
+      setText('s-bal-need', 'payout threshold n/a');
     }
-
-    setText('v-imm', immature.toFixed(4) + ' ' + ticker);
-    setText('s-imm-usd', usd(immature) + ' USD');
+    if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
+      setText('s-bal-eta', '≈' + formatEta(payout.remaining / payout.ratePerHour) + ' to payout');
+    } else {
+      setText('s-bal-eta', '');
+    }
 
     setText('v-paid', paid.toFixed(4) + ' ' + ticker);
     setText('s-paid-usd', usd(paid) + ' USD');
     setText('s-paid-today', 'Today: ' + num(apiAcc.todayPaid).toFixed(4) + ' ' + ticker);
 
-    var obs24 = num(obs.earnings.twentyFourH);
-    setText('v-obs24', obs24.toFixed(4) + ' ' + ticker);
-    setText('s-obs24-usd', usd(obs24) + ' USD');
+    var estHour = num(est.perHour);
+    var estDay = num(est.perDay);
+    setText('v-est', estHour.toFixed(4) + ' ' + ticker + '/h');
+    setText('s-est-d', estDay.toFixed(4) + ' ' + ticker + '/d');
+    setText('s-est-usd', usd(estDay) + ' USD');
+
+    var apiHour = num(income.hour);
     var api24 = num(income.day);
-    if (api24 > 0) {
-      var d24 = obs24 - api24;
-      var dpct = (d24 / api24) * 100;
-      setText('s-obs24-delta', 'API: ' + api24.toFixed(4) + ' · Δ ' + (d24 >= 0 ? '+' : '') + d24.toFixed(4) + ' (' + (d24 >= 0 ? '+' : '') + dpct.toFixed(1) + '%)');
-    } else {
-      setText('s-obs24-delta', 'API: n/a · Δ --');
-    }
-
-    setText('v-earn', api24.toFixed(4) + ' ' + ticker);
-    setText('s-earn-usd', usd(api24) + ' USD');
-
-    var theoryDaily = num(data.theoretical.daily);
-    if (obs24 > 0 && theoryDaily != null && theoryDaily > 0) {
-      var ratioPct = (obs24 / theoryDaily) * 100;
-      setText('v-luck', ratioPct.toFixed(0) + '%');
-      setText('s-luck-theory', 'Theory: ' + theoryDaily.toFixed(2) + ' / day · ratio ' + ratioPct.toFixed(1) + '%');
-    } else {
-      setText('v-luck', 'N/A');
-      setText('s-luck-theory', 'Theory: ' + (theoryDaily != null && theoryDaily > 0 ? theoryDaily.toFixed(2) + ' / day' : 'N/A') + (obs24 > 0 ? '' : ' · no observed 24h'));
-    }
+    setText('v-api', apiHour.toFixed(4) + ' ' + ticker + '/h');
+    setText('s-api-d', api24.toFixed(4) + ' ' + ticker + '/d');
+    setText('s-api-usd', usd(api24) + ' USD');
 
     var liveHr = num(hash.current);
     var h6 = num(hash.sixH);
     var h24 = num(hash.day);
     setText('v-hr', formatHashrateClient(liveHr));
 
-    var trendStr = '';
-    var hrHist = data.hashrateHistory || [];
-    if (hrHist && hrHist.length > 1) {
-      var t = hashrateTrendPct(hrHist);
-      if (t != null) trendStr = ' · 24h ' + (t >= 0 ? '\u2191' : '\u2193') + Math.abs(t).toFixed(1) + '%';
-    }
-    setText('s-hr-stab', 'Live (kH/s): ' + (liveHr >= 1000 ? (liveHr / 1000).toFixed(2) : 'n/a') + trendStr);
-
-    setText('v-avg', formatHashrateClient(h24));
-    setText('s-avg-6h', '6h avg: ' + (h6 > 0 ? formatHashrateClient(h6) : '--'));
+    setText('s-hr-6h', '6H: ' + (h6 > 0 ? formatHashrateClient(h6) : '--'));
+    setText('s-hr-24h', '24H: ' + (h24 > 0 ? formatHashrateClient(h24) : '--'));
 
     var poolEff = apiPool.poolEffortPct;
     setText('v-peff', poolEff != null ? poolEff.toFixed(1) + '%' : 'N/A');
-    setText('s-peff-pool', 'Pool: ' + formatHashrateClient(apiPool.poolHashrate || 0) + ' (' + (apiPool.poolMiners != null ? apiPool.poolMiners : '--') + ' miners)');
+    setText('s-peff-pool', 'Pool: ' + formatHashrateClient(apiPool.poolHashrate || 0));
+    setText('s-peff-miners', apiPool.poolMiners != null ? apiPool.poolMiners + ' miners' : '-- miners');
 
-    var ueff = apiAcc.userEffortPct;
-    setText('v-ueff', ueff != null ? ueff.toFixed(1) + '%' : 'N/A');
+    var ueff = apiAcc.effort || {};
+    setText('v-ueff-pplns', ueff.pplns != null ? ueff.pplns.toFixed(1) + '%' : 'N/A');
+    setText('v-ueff-solo', ueff.solo != null ? ueff.solo.toFixed(1) + '%' : 'N/A');
     setText('s-ueff-workers', counts.online + '/' + counts.total + ' workers online');
 
     setText('v-net', formatHashrateClient(apiPool.netHashrate || 0));
@@ -682,39 +707,15 @@
     var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
     setText('s-net-merge', merge);
 
-    var thr = payout.threshold != null ? payout.threshold : payout.minPay;
-    var thrTag = payout.thresholdSource === 'config' ? ' (PAYOUT_THRESHOLD)'
-      : (payout.thresholdSource === 'woolypooly-api' ? ' (pool min)' : '');
-    if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
-      var eta = payout.remaining / payout.ratePerHour;
-      setText('v-pay', formatEta(eta));
-      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · threshold ' + thr + ' ' + ticker + thrTag);
-    } else if (payout.remaining != null && payout.remaining <= 0) {
-      setText('v-pay', 'Due');
-      setText('s-pay-need', 'Ready for payout · threshold ' + thr + ' ' + ticker + thrTag);
-    } else {
-      setText('v-pay', '--');
-      setText('s-pay-need', 'Based on API 24h rate');
-    }
-
-    setText('insightBox', analytics.summary || 'No data');
-
     var cmp = el('comparisonTableBody');
-    if (cmp && analytics.comparisons) {
+    if (cmp && data.comparisons) {
       var html = '';
-      analytics.comparisons.forEach(function (c) {
-        var statusClass = '';
-        if (c.status === 'Within 5%') statusClass = 'badge-live';
-        else if (c.status === 'Outside 5%') statusClass = 'badge-stale';
-        var status = '<span class="badge ' + (statusClass || 'badge-live') + '">' + esc(c.status) + '</span>';
+      data.comparisons.forEach(function (c) {
         html += '<tr>' +
           '<td style="font-weight: 600;">' + esc(c.label) + '</td>' +
           '<td style="color: #38bdf8;">' + esc(c.api) + '</td>' +
-          '<td style="color: #34d399; font-weight: 700;">' + esc(c.observed) + '</td>' +
-          '<td style="color: #e0a82e;">' + esc(c.projected == null ? '—' : c.projected) + '</td>' +
-          '<td style="color: #60a5fa;">' + esc(c.theory == null ? '—' : c.theory) + '</td>' +
-          '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td>' +
-          '<td>' + status + '</td></tr>';
+          '<td style="color: #34d399; font-weight: 700;">' + esc(c.estimated) + '</td>' +
+          '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td></tr>';
       });
       cmp.innerHTML = html;
     }
@@ -728,7 +729,6 @@
     buildPagination('paymentsPagination', pageState.payments, 'paymentsTableBody');
 
     renderChart(data.profitGraph, ticker, price);
-    window.__lastObserved = data.observed;
   }
 
   function renderTable(tableBodyId, state) {
@@ -740,9 +740,18 @@
     document.addEventListener('mouseover', function (evt) {
       var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
       if (!btn) return;
+      if (btn === tipBtn && (infoTip || tipTimer)) return;
+      clearTipTimer();
+      tipBtn = btn;
       var tip = btn.getAttribute('data-tip');
-      if (!tip) return;
-      showInfoTip(btn, tip);
+      if (!tip) {
+        tipBtn = null;
+        return;
+      }
+      tipTimer = setTimeout(function () {
+        tipTimer = null;
+        showInfoTip(btn, tip);
+      }, 100);
     });
 
     document.addEventListener('focusin', function (evt) {
@@ -750,17 +759,28 @@
       if (!btn) return;
       var tip = btn.getAttribute('data-tip');
       if (!tip) return;
+      clearTipTimer();
+      tipBtn = btn;
       showInfoTip(btn, tip);
     });
 
     document.addEventListener('mouseout', function (evt) {
       var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-      if (btn) hideInfoTip();
+      if (!btn) return;
+      var rel = evt.relatedTarget;
+      if (rel && btn.contains && btn.contains(rel)) return;
+      if (btn !== tipBtn) return;
+      clearTipTimer();
+      tipBtn = null;
+      hideInfoTip();
     });
 
     document.addEventListener('focusout', function (evt) {
       var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-      if (btn) hideInfoTip();
+      if (!btn) return;
+      clearTipTimer();
+      tipBtn = null;
+      hideInfoTip();
     });
   }
 
@@ -798,8 +818,12 @@
     infoTip = null;
   }
 
-  if (el('walletTag')) {
-    el('walletTag').textContent = DEFAULT_WALLET ? ' · ' + shortWallet(DEFAULT_WALLET) : '';
+  var walletAddrNode = el('walletAddr');
+  if (walletAddrNode) walletAddrNode.textContent = DEFAULT_WALLET || '';
+  var walletBtn = el('walletCopy');
+  if (walletBtn) {
+    if (!DEFAULT_WALLET) walletBtn.style.display = 'none';
+    else walletBtn.addEventListener('click', copyWallet);
   }
   initChart();
   initInfoTips();
