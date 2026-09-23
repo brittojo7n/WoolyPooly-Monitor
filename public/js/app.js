@@ -804,8 +804,9 @@
     setText('s-peff-pool', 'Pool: ' + formatHashrateClient(apiPool.poolHashrate || 0));
     setText('s-peff-miners', apiPool.poolMiners != null ? apiPool.poolMiners + ' miners' : '-- miners');
 
-    var ueff = apiAcc.userEffortPct;
-    setText('v-ueff', ueff != null ? ueff.toFixed(1) + '%' : 'N/A');
+    var ueff = apiAcc.effort || {};
+    setText('v-ueff-pplns', ueff.pplns != null ? ueff.pplns.toFixed(1) + '%' : 'N/A');
+    setText('v-ueff-solo', ueff.solo != null ? ueff.solo.toFixed(1) + '%' : 'N/A');
     setText('s-ueff-workers', counts.online + '/' + counts.total + ' workers online');
 
     setText('v-net', formatHashrateClient(apiPool.netHashrate || 0));

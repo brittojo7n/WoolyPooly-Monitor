@@ -423,6 +423,57 @@ header {
   display: none;
 }
 
+.effort-split {
+  display: flex;
+  align-items: stretch;
+}
+
+.effort-half {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  padding: 2px 6px;
+}
+
+.effort-half + .effort-half {
+  border-left: 1px solid var(--border);
+}
+
+.effort-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.effort-half .metric-value {
+  font-size: clamp(18px, 1.8vw, 24px);
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+
+.effort-foot {
+  text-align: center;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-l1);
+}
+
+@media (max-width: 640px), (orientation: portrait) and (max-width: 1024px) {
+  .effort-split {
+    flex-direction: column;
+  }
+
+  .effort-half + .effort-half {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+}
+
 .metric-bar {
   height: 6px;
   border-radius: var(--radius-pill);
