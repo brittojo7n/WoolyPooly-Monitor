@@ -11,10 +11,6 @@
   var touchPinned = -1;
   var lastTipIdx = -1;
   var lastGraphMax = 0.0001;
-  var hrMaxP = 0.0001;
-  var hrMaxS = 0.0001;
-  var hrHave = { pplns: false, solo: false };
-  var hrVisible = { pplns: false, solo: false };
   var lastPayloadKey = null;
 
   var pageState = {
@@ -142,14 +138,6 @@
     return h.toFixed(2) + ' H/s';
   }
 
-  function hrOn() {
-    return (hrVisible.pplns && hrHave.pplns) || (hrVisible.solo && hrHave.solo);
-  }
-
-  function chartPad() {
-    return { top: 20, right: hrOn() ? 78 : 20, bottom: 35, left: 60 };
-  }
-
   function initChart() {
     chart = document.getElementById('velocityCanvas');
     tooltip = document.getElementById('chartTooltip');
@@ -179,7 +167,7 @@
       if (!lastGraphData || lastGraphData.length === 0) return;
       var rect = chart.getBoundingClientRect();
       var x = clientX - rect.left;
-      var padding = chartPad();
+      var padding = { top: 20, right: 20, bottom: 35, left: 60 };
       var w = rect.width - padding.left - padding.right;
       var count = lastGraphData.length;
 
@@ -218,12 +206,9 @@
         var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : 'Hour ' + (idx + 1);
         var usdStr = (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
         var partStr = item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
-        var hrStr = '';
-        if (hrVisible.pplns && hrHave.pplns && item.pplns != null) hrStr += '<div class="tt-sub">PPLNS ' + formatHashrateClient(item.pplns) + '</div>';
-        if (hrVisible.solo && hrHave.solo && item.solo != null) hrStr += '<div class="tt-sub">SOLO ' + formatHashrateClient(item.solo) + '</div>';
         tooltip.innerHTML = '<div class="tt-time">' + dt + '</div>' +
           '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + '</div>' +
-          usdStr + partStr + hrStr;
+          usdStr + partStr;
         var ttHalf = tooltip.offsetWidth / 2 + 8;
         var tipX = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX));
         var tipY = Math.max(25, pointY);
@@ -243,19 +228,6 @@
     });
     chart.addEventListener('touchstart', queuePointer, { passive: true });
     chart.addEventListener('touchmove', queuePointer, { passive: true });
-    var legend = document.getElementById('chartLegend');
-    if (legend) {
-      legend.addEventListener('click', function (evt) {
-        var btn = evt.target && evt.target.closest ? evt.target.closest('button[data-series]') : null;
-        if (!btn) return;
-        var s = btn.getAttribute('data-series');
-        hrVisible[s] = !hrVisible[s];
-        btn.setAttribute('aria-pressed', hrVisible[s] ? 'true' : 'false');
-        lastTipIdx = -1;
-        if (tooltip) tooltip.classList.remove('active');
-        markChartDirty();
-      });
-    }
     document.addEventListener('touchstart', function (evt) {
       if (evt.target !== chart && touchPinned !== -1) {
         touchPinned = -1;
@@ -305,7 +277,7 @@
       return;
     }
 
-    var padding = chartPad();
+    var padding = { top: 20, right: 20, bottom: 35, left: 60 };
     var w = rect.width - padding.left - padding.right;
     var h = rect.height - padding.top - padding.bottom;
     var amounts = lastGraphData.map(function (g) { return parseFloat(g.amount) || 0; });
@@ -404,56 +376,6 @@
       ctx.stroke();
     });
 
-    if (hrOn()) {
-      var hmax = Math.max(hrVisible.pplns && hrHave.pplns ? hrMaxP : 0, hrVisible.solo && hrHave.solo ? hrMaxS : 0);
-      if (hmax > 0) {
-        ctx.save();
-        ctx.font = '10px system-ui, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#64748b';
-        for (var gri = 0; gri <= gridCount; gri++) {
-          var gr = gri / gridCount;
-          ctx.fillText(formatHashrateClient(gr * hmax), rect.width - padding.right + 8, padding.top + h - gr * h);
-        }
-        ctx.restore();
-        var hrDefs = [['pplns', '#38bdf8'], ['solo', '#fbbf24']];
-        for (var hdi = 0; hdi < hrDefs.length; hdi++) {
-          if (!hrVisible[hrDefs[hdi][0]]) continue;
-          ctx.save();
-          ctx.strokeStyle = hrDefs[hdi][1];
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          var pen = false;
-          for (var hpi = 0; hpi < count; hpi++) {
-            var hv = parseFloat(lastGraphData[hpi][hrDefs[hdi][0]]);
-            if (!isFinite(hv)) { pen = false; continue; }
-            var hx = padding.left + hpi * step;
-            var hy = padding.top + h - (hv / hmax) * h;
-            if (!pen) { ctx.moveTo(hx, hy); pen = true; } else { ctx.lineTo(hx, hy); }
-          }
-          ctx.stroke();
-          ctx.restore();
-          if (hoveredIndex >= 0 && hoveredIndex < count) {
-            var mv = parseFloat(lastGraphData[hoveredIndex][hrDefs[hdi][0]]);
-            if (isFinite(mv)) {
-              var mx = padding.left + hoveredIndex * step;
-              var my = padding.top + h - (mv / hmax) * h;
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(mx, my, 4.5, 0, Math.PI * 2);
-              ctx.fillStyle = '#0f172a';
-              ctx.fill();
-              ctx.lineWidth = 2;
-              ctx.strokeStyle = hrDefs[hdi][1];
-              ctx.stroke();
-              ctx.restore();
-            }
-          }
-        }
-      }
-    }
-
     if (hoveredIndex >= 0 && hoveredIndex < points.length) {
       var hp = points[hoveredIndex];
       ctx.save();
@@ -474,42 +396,12 @@
     lastUsdPrice = usdPrice || 0;
     lastTipIdx = -1;
     var m = 0.0001;
-    var pm = 0.0001;
-    var sm = 0.0001;
-    hrHave.pplns = false;
-    hrHave.solo = false;
     for (var i = 0; i < lastGraphData.length; i++) {
       var v = parseFloat(lastGraphData[i].amount) || 0;
       if (v > m) m = v;
-      var pv = parseFloat(lastGraphData[i].pplns);
-      if (isFinite(pv) && pv > 0) {
-        hrHave.pplns = true;
-        if (pv > pm) pm = pv;
-      }
-      var sv = parseFloat(lastGraphData[i].solo);
-      if (isFinite(sv) && sv > 0) {
-        hrHave.solo = true;
-        if (sv > sm) sm = sv;
-      }
     }
     lastGraphMax = m * 1.15;
-    hrMaxP = pm * 1.15;
-    hrMaxS = sm * 1.15;
-    syncLegend();
     markChartDirty();
-  }
-
-  function syncLegend() {
-    var legend = el('chartLegend');
-    if (!legend || !legend.querySelectorAll) return;
-    var btns = legend.querySelectorAll('button[data-series]');
-    for (var i = 0; i < btns.length; i++) {
-      var s = btns[i].getAttribute('data-series');
-      var has = s === 'solo' ? hrHave.solo : hrHave.pplns;
-      if (!has) hrVisible[s] = false;
-      btns[i].classList.toggle('lg-off', !has);
-      btns[i].setAttribute('aria-pressed', hrVisible[s] ? 'true' : 'false');
-    }
   }
 
   function reconnectStream() {
