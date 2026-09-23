@@ -187,6 +187,12 @@ header {
   color: var(--amber-bright);
 }
 
+.badge-neutral {
+  background: rgba(var(--white-rgb), 0.10);
+  border-color: rgba(var(--white-rgb), 0.30);
+  color: var(--text-secondary);
+}
+
 .price-pill {
   background: var(--surface-2);
   border: 1px solid var(--border);

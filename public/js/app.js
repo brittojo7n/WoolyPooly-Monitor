@@ -574,18 +574,18 @@
   }
 
   function updateUI(data) {
-    if (!data || !data.api || !data.api.account || !data.observed) return;
+    if (!data || !data.api || !data.api.account || !data.estimated) return;
 
     var ticker = data.coinTicker || 'VTC';
     var price = num(data.usdPrice);
     var apiAcc = data.api.account;
     var apiPool = data.api.pool || {};
-    var obs = data.observed;
+    var est = data.estimated;
     var payout = data.payout || {};
     var analytics = data.analytics || {};
 
     var key = data.timestamp + '|' + ticker + '|' + JSON.stringify(apiAcc.income) + '|' +
-      JSON.stringify(obs.earnings) + '|' + JSON.stringify(apiPool);
+      JSON.stringify([est.perHour, est.perDay, est.productiveBuckets]) + '|' + JSON.stringify(apiPool);
     if (key === lastPayloadKey) return;
     lastPayloadKey = key;
 
@@ -637,11 +637,13 @@
     setText('s-paid-usd', usd(paid) + ' USD');
     setText('s-paid-today', 'Today: ' + num(apiAcc.todayPaid).toFixed(4) + ' ' + ticker);
 
-    var obsHour = num(obs.earnings.hour);
-    var obs24 = num(obs.earnings.twentyFourH);
-    setText('v-obs', obsHour.toFixed(4) + ' ' + ticker + '/h');
-    setText('s-obs-d', obs24.toFixed(4) + ' ' + ticker + '/d');
-    setText('s-obs-usd', usd(obs24) + ' USD');
+    var estHour = num(est.perHour);
+    var estDay = num(est.perDay);
+    var estN = Math.floor(num(est.productiveBuckets));
+    setText('v-est', estHour.toFixed(4) + ' ' + ticker + '/h');
+    setText('s-est-d', estDay.toFixed(4) + ' ' + ticker + '/d');
+    setText('s-est-basis', estN > 0 ? 'Latest ' + estN + ' productive bucket' + (estN === 1 ? '' : 's') : 'Insufficient data');
+    setText('s-est-usd', usd(estDay) + ' USD');
 
     var apiHour = num(income.hour);
     var api24 = num(income.day);
@@ -680,12 +682,12 @@
         var statusClass = '';
         if (c.status === 'Within 5%') statusClass = 'badge-live';
         else if (c.status === 'Outside 5%') statusClass = 'badge-stale';
+        else if (c.status === 'Insufficient data') statusClass = 'badge-neutral';
         var status = '<span class="badge ' + (statusClass || 'badge-live') + '">' + esc(c.status) + '</span>';
         html += '<tr>' +
           '<td style="font-weight: 600;">' + esc(c.label) + '</td>' +
           '<td style="color: #38bdf8;">' + esc(c.api) + '</td>' +
-          '<td style="color: #34d399; font-weight: 700;">' + esc(c.observed) + '</td>' +
-          '<td style="color: #e0a82e;">' + esc(c.projected == null ? '—' : c.projected) + '</td>' +
+          '<td style="color: #34d399; font-weight: 700;">' + esc(c.estimated) + '</td>' +
           '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td>' +
           '<td>' + status + '</td></tr>';
       });
@@ -701,7 +703,7 @@
     buildPagination('paymentsPagination', pageState.payments, 'paymentsTableBody');
 
     renderChart(data.profitGraph, ticker, price);
-    window.__lastObserved = data.observed;
+    window.__lastEstimated = data.estimated;
   }
 
   function renderTable(tableBodyId, state) {

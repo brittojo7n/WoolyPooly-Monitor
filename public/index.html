@@ -29,10 +29,11 @@
 
     <div class="grid-4">
       <div class="card">
-        <div class="card-header"><span>Observed</span><button type="button" class="info" data-tip="Account-derived rates from the pool's per-hour credited buckets (minerProfitGraph): latest hourly credit on top, trailing 24h sum below. Payout-resistant — payouts do not reduce these figures." aria-label="Observed hourly and daily earnings from credited buckets."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
-        <div class="metric-value" id="v-obs" style="color: #34d399;">0.0000</div>
-        <div class="metric-sub" id="s-obs-d">0.0000 /d</div>
-        <div class="metric-sub" style="margin-top: 6px;" id="s-obs-usd">$0.00 USD</div>
+        <div class="card-header"><span>Estimated</span><button type="button" class="info" data-tip="Estimated earnings rate for your active productive session: mean of the latest 24 productive hourly buckets (minerProfitGraph). One zero hour does not reset; two in a row ends the session." aria-label="Estimated hourly and daily earnings from productive buckets."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="metric-value" id="v-est" style="color: #34d399;">0.0000</div>
+        <div class="metric-sub" id="s-est-d">0.0000 /d</div>
+        <div class="metric-sub" id="s-est-basis">--</div>
+        <div class="metric-sub" style="margin-top: 6px;" id="s-est-usd">$0.00 USD</div>
       </div>
 
       <div class="card">
@@ -89,7 +90,7 @@
 
     <div class="comparison-section">
       <div class="section-title">
-        <span>API vs Observed</span>
+        <span>API vs Estimated</span>
         <span style="font-size: 12px; color: var(--text-muted);" id="lastRefreshed">Updated: --</span>
       </div>
       <div class="insight-box" id="insightBox">Analyzing...</div>
@@ -99,14 +100,13 @@
             <tr>
               <th>Metric</th>
               <th>WoolyPooly API</th>
-              <th>Observed</th>
-              <th>Projected</th>
+              <th>Estimated</th>
               <th>Delta vs API</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody id="comparisonTableBody">
-            <tr><td colspan="6">Loading...</td></tr>
+            <tr><td colspan="5">Loading...</td></tr>
           </tbody>
         </table>
       </div>

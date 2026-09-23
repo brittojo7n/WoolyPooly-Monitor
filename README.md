@@ -2,13 +2,12 @@
 
 A lightweight, real-time web dashboard for monitoring your WoolyPooly mining statistics — hashrate, earnings, balances, and worker telemetry — served locally over SSE. No framework, no database: a single Node process with a fast static frontend.
 
-The dashboard makes a **strict separation** between three kinds of numbers (never mixed):
+The dashboard makes a **strict separation** between two kinds of numbers (never mixed):
 
 | Kind | Source | Meaning |
 | --- | --- | --- |
 | **WoolyPooly API** | raw API response, passed through unchanged | "What does the pool currently say?" e.g. `income_Hour / HalfDay / Day / Week / Month`, balances, hashrates, effort |
-| **Observed** | account-derived accounting | built from the pool's per-hour credited buckets (`minerProfitGraph`) for 1h–24h, and from local telemetry history (`E(t) = paid + balance + immature`) for 7d/30d. Payout-resistant. |
-| **Projected** | WoolyPooly API 24h income × time | clearly labelled "Projected", never shown as Actual/Observed |
+| **Estimated** | productive-session engine over archived hourly buckets | mean of the latest 24 productive buckets of the active session (`minerProfitGraph`, archived in `data/buckets.json`); 12h/24h/7d/30d are the hourly rate × time. One zero hour does not reset; two in a row ends the session. |
 
 ## Requirements
 
@@ -37,8 +36,9 @@ The dashboard makes a **strict separation** between three kinds of numbers (neve
 - `index.js` — HTTP server + SSE stream, aggregates pool + CoinGecko data
 - `lib/config.js` — env loading, coin/pool IDs, wallet detection, `isValidCoin`, fallback `PAYOUT_THRESHOLD`
 - `lib/woolypooly.js` — WoolyPooly & CoinGecko API client (fetch helpers + price cache)
-- `lib/metrics.js` — data model: API / Observed / Projected separation
-- `lib/history.js` — local telemetry store (`data/telemetry.json`, 15-min snapshots, 31-day retention)
+- `lib/metrics.js` — data model: API / Estimated separation
+- `lib/estimator.js` — productive-session engine: break detection (two consecutive zero buckets), rolling 24-productive-bucket mean, derived periods
+- `lib/history.js` — local stores: telemetry snapshots (`data/telemetry.json`, 15-min, 31-day retention) + archived hourly buckets (`data/buckets.json`, permanent)
 - `lib/router.js` — routing, feed cache, SSE broadcast, debug endpoints
 - `lib/ui.js` — HTML page rendering
 - `public/` — static assets (HTML, CSS, client JS)
@@ -53,20 +53,25 @@ The dashboard makes a **strict separation** between three kinds of numbers (neve
 - `GET /api/debug/woolypooly` — raw upstream account payload (wallet redacted) + pool/price status, for inspecting whether WoolyPooly changed its schema.
 - `GET /api/debug/history` — local telemetry summary (history age, observed windows), wallet redacted.
 
-## History & observed earnings
+## Estimated earnings engine
 
-For 7d/30d "Observed" values the app keeps snapshots of `paid`, `balance` and `immature_balance` in `data/telemetry.json` (gitignored), persisted across restarts. Observed earnings over a window are:
+Completed hourly buckets from `minerProfitGraph` are archived per coin+wallet in `data/buckets.json` (gitignored), keyed by `created` timestamp so re-polling never double-counts. Missing/malformed data is a gap, never a zero; the in-progress current-hour bucket is excluded until it completes.
+
+Session rule: a single zero bucket does not reset; **two consecutive valid zero buckets** end the session (rate → 0). The first positive bucket afterwards starts a new session. The live rate is the mean of the latest 24 productive buckets of the active session (fewer during warm-up; zeros excluded from the denominator):
 
 ```
-E(t)      = paid(t) + balance(t) + immature_balance(t)
-Observed  = E(now) − E(now − period)
+estimatedPerHour  = rollingIncomeSum / rollingProductiveHours
+estimatedPer12h   = estimatedPerHour × 12
+estimatedPerDay   = estimatedPerHour × 24
+estimatedPerWeek  = estimatedPerHour × 168
+estimatedPerMonth = estimatedPerHour × 720
 ```
 
-A window is only shown once a snapshot at or before `now − period` exists; until then the dashboard shows **"N/A — insufficient history"** and never extrapolates.
+With no productive buckets the dashboard shows **"N/A — insuff. data"** / **"Insufficient data"** and never extrapolates. On API failure the last estimator is retained and the `STALE` badge shows.
 
 ## Payout ETA
 
-The "Next Payout" estimate uses the **WoolyPooly API 24h income rate** (API 24h ÷ 24). The payout threshold is the greater of the pool's minimum payout (`minPay` from the pool stats endpoint) and the `PAYOUT_THRESHOLD` env var (your configured payout threshold on the pool); when the endpoint is unreachable, `PAYOUT_THRESHOLD` is used alone. The UI displays the effective threshold.
+The payout ETA in the Balance card uses the **Estimated hourly rate** from the productive-session engine. The payout threshold is the greater of the pool's minimum payout (`minPay` from the pool stats endpoint) and the `PAYOUT_THRESHOLD` env var (your configured payout threshold on the pool); when the endpoint is unreachable, `PAYOUT_THRESHOLD` is used alone. The UI displays the effective threshold.
 
 ## Mining context
 
