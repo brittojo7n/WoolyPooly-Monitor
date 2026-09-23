@@ -406,10 +406,16 @@
     var start = total === 0 ? 0 : (state.page - 1) * PAGE_SIZE + 1;
     var end = Math.min(total, state.page * PAGE_SIZE);
 
-    var entry = document.createElement('div');
-    entry.className = 'page-row-count';
-    entry.textContent = 'Showing ' + start + '–' + end + ' of ' + total;
-    box.appendChild(entry);
+    var left = document.createElement('div');
+    left.className = 'page-left';
+    left.textContent = 'Showing ' + start + '–' + end + ' of ' + total;
+
+    var controls = document.createElement('div');
+    controls.className = 'page-controls';
+
+    var right = document.createElement('div');
+    right.className = 'page-right';
+    right.textContent = 'Page ' + state.page + ' of ' + pages;
 
     var prevBtn = document.createElement('button');
     prevBtn.type = 'button';
@@ -423,7 +429,7 @@
         buildPagination(boxId, state, tableBodyId);
       }
     });
-    box.appendChild(prevBtn);
+    controls.appendChild(prevBtn);
 
     var input = document.createElement('input');
     input.type = 'number';
@@ -458,12 +464,7 @@
       }
     });
     input.addEventListener('blur', commit);
-    box.appendChild(input);
-
-    var scope = document.createElement('span');
-    scope.className = 'page-scope';
-    scope.textContent = 'Page ' + state.page + ' of ' + pages;
-    box.appendChild(scope);
+    controls.appendChild(input);
 
     var nextBtn = document.createElement('button');
     nextBtn.type = 'button';
@@ -477,12 +478,11 @@
         buildPagination(boxId, state, tableBodyId);
       }
     });
-    box.appendChild(nextBtn);
+    controls.appendChild(nextBtn);
 
-    var pill = document.createElement('span');
-    pill.className = 'page-pill';
-    pill.textContent = pages + ' pages';
-    box.appendChild(pill);
+    box.appendChild(left);
+    box.appendChild(controls);
+    box.appendChild(right);
   }
 
   function clampPages(state) {
@@ -570,8 +570,8 @@
     var dt = new Date(pay.timestamp * 1000).toLocaleString();
     return '<tr>' +
       '<td>' + dt + '</td>' +
-      '<td style="color: #34d399; font-weight: 700;">' + (parseFloat(pay.amount) || 0).toFixed(4) + ' VTC</td>' +
-      '<td style="font-family: monospace; font-size: 12px; color: var(--text-muted);">' + esc(pay.tx || 'N/A') + '</td></tr>';
+      '<td style="color: var(--green-bright); font-weight: 700;">' + (parseFloat(pay.amount) || 0).toFixed(4) + ' ' + (lastTicker || 'VTC') + '</td>' +
+      '<td style="font-family: var(--mono); font-size: 12px; color: var(--text-muted);">' + esc(pay.tx || 'N/A') + '</td></tr>';
   }
 
   function updateUI(data) {
@@ -609,11 +609,18 @@
     var immature = num(apiAcc.immatureBalance);
     var paid = num(apiAcc.paid);
 
+    lastTicker = ticker;
     setText('v-unpaid', balance.toFixed(4) + ' ' + ticker);
     setText('s-unpaid-usd', usd(balance) + ' USD');
-    var minPay = payout.minPay;
+    var minPay = payout.threshold != null ? payout.threshold : payout.minPay;
     var payPct = (minPay > 0) ? Math.min(100, (balance / minPay) * 100) : null;
-    setText('s-unpaid-pct', payPct != null ? payPct.toFixed(0) + '% of ' + minPay + ' min payout' : 'min payout n/a');
+    setText('s-unpaid-pct', payPct != null
+      ? payPct.toFixed(0) + '% of ' + minPay + ' ' + ticker + ' payout threshold'
+      : 'payout threshold n/a');
+    var payBar = el('s-unpaid-bar-fill');
+    if (payBar) {
+      payBar.style.transform = 'scaleX(' + ((payPct != null ? payPct : 0) / 100) + ')';
+    }
 
     setText('v-imm', immature.toFixed(4) + ' ' + ticker);
     setText('s-imm-usd', usd(immature) + ' USD');
@@ -677,13 +684,16 @@
     var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
     setText('s-net-merge', merge);
 
+    var thr = payout.threshold != null ? payout.threshold : payout.minPay;
+    var thrTag = payout.thresholdSource === 'config' ? ' (PAYOUT_THRESHOLD)'
+      : (payout.thresholdSource === 'woolypooly-api' ? ' (pool min)' : '');
     if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
       var eta = payout.remaining / payout.ratePerHour;
       setText('v-pay', formatEta(eta));
-      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · ' + payout.minPay + ' min');
+      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · threshold ' + thr + ' ' + ticker + thrTag);
     } else if (payout.remaining != null && payout.remaining <= 0) {
       setText('v-pay', 'Due');
-      setText('s-pay-need', 'Ready for auto payout (min ' + payout.minPay + ')');
+      setText('s-pay-need', 'Ready for payout · threshold ' + thr + ' ' + ticker + thrTag);
     } else {
       setText('v-pay', '--');
       setText('s-pay-need', 'Based on API 24h rate');
