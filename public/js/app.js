@@ -609,20 +609,9 @@
     var paid = num(apiAcc.paid);
 
     lastTicker = ticker;
-    setText('v-unpaid', balance.toFixed(4) + ' ' + ticker);
-    setText('s-unpaid-usd', usd(balance) + ' USD');
-    var minPay = payout.threshold;
-    var payPct = (minPay > 0) ? Math.min(100, (balance / minPay) * 100) : null;
-    setText('s-unpaid-pct', payPct != null
-      ? payPct.toFixed(0) + '% of ' + minPay + ' ' + ticker + ' payout threshold'
-      : 'payout threshold n/a');
-    var payBar = el('s-unpaid-bar-fill');
-    if (payBar) {
-      payBar.style.transform = 'scaleX(' + ((payPct != null ? payPct : 0) / 100) + ')';
-    }
-
-    setText('v-imm', immature.toFixed(4) + ' ' + ticker);
-    setText('s-imm-usd', usd(immature) + ' USD');
+    var totalBal = balance + immature;
+    setText('v-bal', totalBal.toFixed(4) + ' ' + ticker);
+    setText('s-bal-usd', usd(totalBal) + ' USD');
 
     setText('v-paid', paid.toFixed(4) + ' ' + ticker);
     setText('s-paid-usd', usd(paid) + ' USD');
