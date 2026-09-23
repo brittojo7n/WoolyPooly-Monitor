@@ -794,7 +794,6 @@
     buildPagination('paymentsPagination', pageState.payments, 'paymentsTableBody');
 
     renderChart(data.profitGraph, ticker, price);
-    window.__lastEstimated = data.estimated;
   }
 
   function renderTable(tableBodyId, state) {
