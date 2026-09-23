@@ -309,6 +309,7 @@ header {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 220px;
 }
 
 .grid-4>.card>.card-header {
@@ -380,6 +381,27 @@ header {
   transform-origin: 0 50%;
   transition: transform 0.3s ease-out;
   will-change: transform;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+
+.bar-row>.metric-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.bar-pct {
+  font-size: var(--fs-sub);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .section-title {
@@ -753,6 +775,10 @@ html {
     margin-top: 10px;
   }
 
+  .grid-4>.card {
+    min-height: 190px;
+  }
+
   th,
   td {
     padding: 8px;
@@ -827,6 +853,10 @@ html {
     --fs-value: clamp(15px, 5.2vw, 17px);
     --fs-label: 10px;
     --fs-sub: 11px;
+  }
+
+  .grid-4>.card {
+    min-height: 204px;
   }
 
   .grid-4 {

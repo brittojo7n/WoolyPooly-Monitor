@@ -612,6 +612,26 @@
     var totalBal = balance + immature;
     setText('v-bal', totalBal.toFixed(4) + ' ' + ticker);
     setText('s-bal-usd', usd(totalBal) + ' USD');
+    var thr = payout.threshold;
+    if (thr > 0) {
+      var balPct = Math.min(100, (balance / thr) * 100);
+      setText('s-bal-pct', balPct.toFixed(0) + '%');
+      var balBar = el('s-bal-bar-fill');
+      if (balBar) balBar.style.transform = 'scaleX(' + (balPct / 100) + ')';
+      if (payout.remaining != null && payout.remaining > 0) {
+        setText('s-bal-need', payout.remaining.toFixed(4) + ' ' + ticker + ' more to ' + thr + ' ' + ticker + ' payout');
+      } else {
+        setText('s-bal-need', 'Ready for payout');
+      }
+    } else {
+      setText('s-bal-pct', '--');
+      setText('s-bal-need', 'payout threshold n/a');
+    }
+    if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
+      setText('s-bal-eta', '≈' + formatEta(payout.remaining / payout.ratePerHour) + ' to payout');
+    } else {
+      setText('s-bal-eta', '');
+    }
 
     setText('v-paid', paid.toFixed(4) + ' ' + ticker);
     setText('s-paid-usd', usd(paid) + ' USD');
@@ -650,19 +670,6 @@
     setText('s-net-block', 'Block ' + (apiPool.height != null ? apiPool.height : '--') + ' · ' + (apiPool.blockReward != null ? num(apiPool.blockReward).toFixed(4) : '--') + ' reward');
     var merge = (apiPool.merge && apiPool.merge.length) ? 'Merge: ' + apiPool.merge.join(', ') : 'PPLNS + SOLO';
     setText('s-net-merge', merge);
-
-    var thr = payout.threshold;
-    if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
-      var eta = payout.remaining / payout.ratePerHour;
-      setText('v-pay', formatEta(eta));
-      setText('s-pay-need', 'Need ' + payout.remaining.toFixed(4) + ' ' + ticker + ' more · threshold ' + thr + ' ' + ticker);
-    } else if (payout.remaining != null && payout.remaining <= 0) {
-      setText('v-pay', 'Due');
-      setText('s-pay-need', 'Ready for payout · threshold ' + thr + ' ' + ticker);
-    } else {
-      setText('v-pay', '--');
-      setText('s-pay-need', 'Based on API 24h rate');
-    }
 
     setText('insightBox', analytics.summary || 'No data');
 
