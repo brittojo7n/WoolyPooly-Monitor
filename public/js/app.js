@@ -1,6 +1,4 @@
 (function () {
-  'use strict';
-
   var DEFAULT_WALLET = (document.body && document.body.dataset.defaultWallet) || '';
   var PAGE_SIZE = 5;
   var sseSource = null;
@@ -70,7 +68,7 @@
           }
         }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
       }
-    } catch (err) {}
+    } catch (err) { }
   }
 
   window.addEventListener('load', function () {
@@ -370,11 +368,11 @@
   function reconnectStream() {
     if (sseSource) sseSource.close();
     sseSource = new EventSource('/api/stream');
-    sseSource.onerror = function () {};
+    sseSource.onerror = function () { };
     sseSource.onmessage = function (event) {
       try {
         updateUI(JSON.parse(event.data));
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchDataOnce();
   }
@@ -383,7 +381,7 @@
     fetch('/api/stats')
       .then(function (res) { return res.json(); })
       .then(updateUI)
-      .catch(function () {});
+      .catch(function () { });
   }
 
   function buildPagination(boxId, state, tableBodyId) {
