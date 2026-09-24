@@ -695,10 +695,11 @@
       setText('s-bal-eta', 'ETA paused · no workers online');
     } else if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
       setText('s-bal-eta', '≈' + formatEta(payout.remaining / payout.ratePerHour) + ' to payout');
+    } else if (payout.remaining != null && payout.remaining > 0 && est.status === 'stopped') {
+      setText('s-bal-eta', 'ETA paused · no recent graph bucket');
     } else if (payout.remaining != null && payout.remaining > 0) {
-      setText('s-bal-eta', est.status === 'warming' ? 'ETA unavailable · warming up' :
-        (est.status === 'waiting' ? 'ETA unavailable · awaiting pool credits' :
-          'ETA unavailable · insufficient recent data'));
+      setText('s-bal-eta', est.status === 'waiting' ? 'ETA unavailable · awaiting pool credits' :
+          'ETA unavailable · insufficient recent data');
     } else {
       setText('s-bal-eta', '');
     }
@@ -712,24 +713,20 @@
     if (data.stale) {
       setText('v-est', 'N/A');
       setText('s-est-d', 'Pool data stale');
+    } else if (est.status === 'stopped' || est.status === 'paused' || est.status === 'waiting') {
+      setText('v-est', '0.0000 ' + ticker + '/h');
+      setText('s-est-d', '0.0000 ' + ticker + '/d · ' +
+        (est.status === 'paused' ? 'No workers online' :
+          (est.status === 'stopped' ? 'No recent graph bucket' : 'Awaiting pool credits')));
     } else if (est.available) {
       setText('v-est', '≈' + estHour.toFixed(4) + ' ' + ticker + '/h');
       setText('s-est-d', '≈' + estDay.toFixed(4) + ' ' + ticker + '/d' +
         (est.confidence === 'early' ? ' · early estimate' : ''));
-    } else if (est.status === 'paused') {
-      setText('v-est', 'PAUSED');
-      setText('s-est-d', 'No workers online');
-    } else if (est.status === 'warming') {
-      setText('v-est', 'N/A');
-      setText('s-est-d', 'Warming up · ' + num(est.sampleHours) + '/3 reported hours');
-    } else if (est.status === 'waiting') {
-      setText('v-est', 'N/A');
-      setText('s-est-d', 'Awaiting recent pool credits');
     } else {
       setText('v-est', 'N/A');
       setText('s-est-d', 'Worker data unavailable');
     }
-    setText('s-est-usd', est.available && !data.stale ? usd(estDay) + ' USD/d' :
+    setText('s-est-usd', est.status === 'running' && !data.stale ? usd(estDay) + ' USD/d' :
       '24h reported: ' + num(est.observed24h).toFixed(4) + ' ' + ticker);
 
     var apiHour = num(income.hour);
