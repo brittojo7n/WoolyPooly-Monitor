@@ -337,7 +337,7 @@
     for (var gi = 1; gi < count; gi++) {
       var previousWaiting = !reported[gi - 1] && lastGraphData[gi - 1].status === 'pending';
       var currentWaiting = !reported[gi] && lastGraphData[gi].status === 'pending';
-      if (previousWaiting || currentWaiting || (reported[gi - 1] && reported[gi])) continue;
+      if (previousWaiting || currentWaiting || reported[gi - 1]) continue;
       ctx.moveTo(points[gi - 1].x, points[gi - 1].y);
       ctx.lineTo(points[gi].x, points[gi].y);
     }
@@ -351,6 +351,7 @@
       if (!reported[start]) { start++; continue; }
       var end = start;
       while (end + 1 < count && reported[end + 1]) end++;
+      if (end + 1 < count && lastGraphData[end + 1].status !== 'pending') end++;
       if (end > start) {
         ctx.beginPath();
         ctx.moveTo(points[start].x, padding.top + h);
