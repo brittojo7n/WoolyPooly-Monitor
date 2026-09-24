@@ -1,6 +1,5 @@
 (function () {
   var DEFAULT_WALLET = (document.body && document.body.dataset.defaultWallet) || '';
-  var PAGE_SIZE = 5;
   var sseSource = null;
   var chart = null;
   var tooltip = null;
@@ -14,8 +13,8 @@
   var lastPayloadKey = null;
 
   var pageState = {
-    workers: { page: 1, data: [] },
-    payments: { page: 1, data: [] }
+    workers: { page: 1, pageSize: 4, data: [] },
+    payments: { page: 1, pageSize: 5, data: [] }
   };
 
   var pendingText = new Map();
@@ -444,20 +443,16 @@
     if (!box) return;
 
     var total = state.data.length;
-    if (total <= PAGE_SIZE) {
-      while (box.firstChild) box.removeChild(box.firstChild);
-      box.classList.add('is-empty');
-      return;
-    }
-    box.classList.remove('is-empty');
+    var previousInput = box.querySelector('input');
+    if (previousInput) previousInput.onblur = null;
     while (box.firstChild) box.removeChild(box.firstChild);
 
-    var pages = Math.ceil(total / PAGE_SIZE);
+    var pages = Math.max(1, Math.ceil(total / state.pageSize));
     if (state.page < 1) state.page = 1;
     if (state.page > pages) state.page = pages;
 
-    var start = total === 0 ? 0 : (state.page - 1) * PAGE_SIZE + 1;
-    var end = Math.min(total, state.page * PAGE_SIZE);
+    var start = total === 0 ? 0 : (state.page - 1) * state.pageSize + 1;
+    var end = Math.min(total, state.page * state.pageSize);
 
     var left = document.createElement('div');
     left.className = 'page-left';
@@ -478,7 +473,7 @@
     prevBtn.addEventListener('click', function () {
       if (state.page > 1) {
         state.page--;
-        renderTable(tableBodyId, state);
+        renderTable(tableBodyId);
         buildPagination(boxId, state, tableBodyId);
       }
     });
@@ -490,6 +485,7 @@
     input.min = '1';
     input.max = String(pages);
     input.value = String(state.page);
+    input.disabled = pages <= 1;
     input.setAttribute('aria-label', 'Page number');
 
     var commit = function () {
@@ -504,8 +500,9 @@
         input.value = String(state.page);
         return;
       }
+      if (n === state.page) return;
       state.page = n;
-      renderTable(tableBodyId, state);
+      renderTable(tableBodyId);
       buildPagination(boxId, state, tableBodyId);
     };
 
@@ -516,7 +513,7 @@
         input.blur();
       }
     });
-    input.addEventListener('blur', commit);
+    input.onblur = commit;
     controls.appendChild(input);
 
     var nextBtn = document.createElement('button');
@@ -527,7 +524,7 @@
     nextBtn.addEventListener('click', function () {
       if (state.page < pages) {
         state.page++;
-        renderTable(tableBodyId, state);
+        renderTable(tableBodyId);
         buildPagination(boxId, state, tableBodyId);
       }
     });
@@ -539,42 +536,24 @@
   }
 
   function clampPages(state) {
-    var pages = Math.max(1, Math.ceil(state.data.length / PAGE_SIZE));
+    var pages = Math.max(1, Math.ceil(state.data.length / state.pageSize));
     if (state.page < 1) state.page = 1;
     if (state.page > pages) state.page = pages;
   }
 
-  function renderWorkersTable() {
-    clampPages(pageState.workers);
-    var tbody = el('workersTableBody');
-    var workers = pageState.workers.data;
+  function renderPagedRows(state, bodyId, columns, emptyText, row) {
+    clampPages(state);
+    var tbody = el(bodyId);
     if (!tbody) return;
+    var start = (state.page - 1) * state.pageSize;
+    var records = state.data.slice(start, start + state.pageSize);
+    tbody.innerHTML = records.length
+      ? records.map(row).join('')
+      : '<tr><td colspan="' + columns + '">' + emptyText + '</td></tr>';
+  }
 
-    if (workers.length <= PAGE_SIZE) {
-      if (workers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">No workers</td></tr>';
-      } else {
-        var whole = '';
-        workers.forEach(function (w) {
-          whole += workerRow(w);
-        });
-        tbody.innerHTML = whole;
-      }
-      return;
-    }
-
-    if (workers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4">No workers</td></tr>';
-      return;
-    }
-
-    var startIdx = (pageState.workers.page - 1) * PAGE_SIZE;
-    var slice = workers.slice(startIdx, startIdx + PAGE_SIZE);
-    var html = '';
-    slice.forEach(function (w) {
-      html += workerRow(w);
-    });
-    tbody.innerHTML = html;
+  function renderWorkersTable() {
+    renderPagedRows(pageState.workers, 'workersTableBody', 4, 'No workers', workerRow);
   }
 
   function workerRow(w) {
@@ -587,36 +566,7 @@
   }
 
   function renderPaymentsTable() {
-    clampPages(pageState.payments);
-    var tbody = el('paymentsTableBody');
-    var payments = pageState.payments.data;
-    if (!tbody) return;
-
-    if (payments.length <= PAGE_SIZE) {
-      if (payments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3">No payments</td></tr>';
-      } else {
-        var whole = '';
-        payments.forEach(function (pay) {
-          whole += paymentRow(pay);
-        });
-        tbody.innerHTML = whole;
-      }
-      return;
-    }
-
-    if (payments.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3">No payments</td></tr>';
-      return;
-    }
-
-    var startIdx = (pageState.payments.page - 1) * PAGE_SIZE;
-    var slice = payments.slice(startIdx, startIdx + PAGE_SIZE);
-    var html = '';
-    slice.forEach(function (pay) {
-      html += paymentRow(pay);
-    });
-    tbody.innerHTML = html;
+    renderPagedRows(pageState.payments, 'paymentsTableBody', 3, 'No payments', paymentRow);
   }
 
   function paymentRow(pay) {
@@ -771,7 +721,7 @@
     renderChart(data.hourlyGraph, ticker, price);
   }
 
-  function renderTable(tableBodyId, state) {
+  function renderTable(tableBodyId) {
     if (tableBodyId === 'workersTableBody') renderWorkersTable();
     else renderPaymentsTable();
   }

@@ -640,12 +640,6 @@ tr:last-child td {
   gap: 10px;
 }
 
-.pagination.is-empty {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-
 .page-btn {
   min-width: 36px;
   height: 36px;
@@ -676,7 +670,8 @@ tr:last-child td {
   transform: translateY(1px);
 }
 
-.page-btn:disabled {
+.page-btn:disabled,
+.page-num:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -1010,5 +1005,119 @@ html {
   .metric-bar-fill {
     transition: none !important;
     animation: none !important;
+  }
+}
+.records-card {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-self: start;
+}
+
+.records-card .section-title {
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.records-card .table-wrapper {
+  height: 228px;
+  flex: 0 0 228px;
+  overflow: auto;
+}
+
+.payments-card .table-wrapper {
+  height: 272px;
+  flex-basis: 272px;
+}
+
+.records-card table {
+  white-space: nowrap;
+}
+
+.records-card th {
+  height: 40px;
+}
+
+.records-card td {
+  height: 44px;
+  padding: 10px 12px;
+}
+
+.records-card .pagination {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  height: 54px;
+  flex: 0 0 54px;
+}
+
+.records-card .page-num {
+  width: 54px;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .records-card .pagination {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 18px 36px;
+    height: 80px;
+    flex-basis: 80px;
+  }
+
+  .records-card .page-left {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .records-card .page-right {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .records-card .page-controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+.records-card .page-left,
+.records-card .page-right {
+  letter-spacing: 0;
+  font-size: 11px;
+}
+
+.workers-card .page-controls {
+  gap: 6px;
+}
+
+.workers-card .page-btn {
+  padding: 0 8px;
+}
+
+.workers-card .page-num {
+  width: 40px;
+}
+
+@container (max-width: 380px) {
+  .records-card .pagination {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 18px 36px;
+    height: 80px;
+    flex-basis: 80px;
+  }
+
+  .records-card .page-left {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .records-card .page-right {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .records-card .page-controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
