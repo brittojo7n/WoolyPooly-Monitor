@@ -199,8 +199,6 @@
       var item = lastGraphData[idx];
       var reported = item.amount != null && isFinite(Number(item.amount)) && Number(item.amount) >= 0;
       var amount = reported ? Number(item.amount) : 0;
-      var currentHour = item.status === 'partial' || item.status === 'pending';
-      var showAmount = reported && !currentHour;
       var pointX = padding.left + idx * step;
       var maxVal = lastGraphMax;
       var h = rect.height - padding.top - padding.bottom;
@@ -208,12 +206,11 @@
 
       if (tooltip) {
         var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : 'Hour ' + (idx + 1);
-        var usdStr = showAmount && (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
-        var partStr = showAmount && item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
-        var subStr = currentHour ? '<div class="tt-sub">Awaiting Data</div>' :
-          (showAmount ? '' : '<div class="tt-sub">N/A</div>');
+        var usdStr = reported && (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
+        var partStr = reported && item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
+        var subStr = reported ? '' : '<div class="tt-sub">N/A</div>';
         tooltip.innerHTML = '<div class="tt-time">' + esc(dt) + '</div>' +
-          '<div class="tt-val">' + (showAmount ? amount.toFixed(4) + ' ' + esc(lastTicker) : 'Unreported') + '</div>' +
+          '<div class="tt-val">' + (reported ? amount.toFixed(4) + ' ' + esc(lastTicker) : 'Unreported') + '</div>' +
           usdStr + partStr + subStr;
         var ttHalf = tooltip.offsetWidth / 2 + 8;
         var tipX = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX));
