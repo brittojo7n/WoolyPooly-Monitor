@@ -26,6 +26,7 @@
   var infoTip = null;
   var tipTimer = null;
   var tipBtn = null;
+  var tipPositionPending = false;
 
   function clearTipTimer() {
     if (tipTimer) {
@@ -196,7 +197,8 @@
       hoveredIndex = idx;
 
       var item = lastGraphData[idx];
-      var amount = parseFloat(item.amount) || 0;
+      var reported = item.amount != null && isFinite(Number(item.amount)) && Number(item.amount) >= 0;
+      var amount = reported ? Number(item.amount) : 0;
       var pointX = padding.left + idx * step;
       var maxVal = lastGraphMax;
       var h = rect.height - padding.top - padding.bottom;
@@ -204,11 +206,14 @@
 
       if (tooltip) {
         var dt = item.created ? new Date(item.created).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : 'Hour ' + (idx + 1);
-        var usdStr = (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
-        var partStr = item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
-        tooltip.innerHTML = '<div class="tt-time">' + dt + '</div>' +
-          '<div class="tt-val">' + amount.toFixed(4) + ' ' + lastTicker + '</div>' +
-          usdStr + partStr;
+        var usdStr = reported && (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
+        var partStr = reported && item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
+        var statusStr = item.status === 'partial' ? '<div class="tt-sub">Current hour · still in progress</div>' :
+          (item.status === 'pending' ? '<div class="tt-sub">Current hour · awaiting pool data</div>' :
+            (!reported ? '<div class="tt-sub">No pool bucket; not a measured zero</div>' : ''));
+        tooltip.innerHTML = '<div class="tt-time">' + esc(dt) + '</div>' +
+          '<div class="tt-val">' + (reported ? amount.toFixed(4) + ' ' + esc(lastTicker) : 'Unreported') + '</div>' +
+          usdStr + partStr + statusStr;
         var ttHalf = tooltip.offsetWidth / 2 + 8;
         var tipX = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX));
         var tipY = Math.max(25, pointY);
@@ -280,7 +285,10 @@
     var padding = { top: 20, right: 20, bottom: 35, left: 60 };
     var w = rect.width - padding.left - padding.right;
     var h = rect.height - padding.top - padding.bottom;
-    var amounts = lastGraphData.map(function (g) { return parseFloat(g.amount) || 0; });
+    var reported = lastGraphData.map(function (g) {
+      return g.amount != null && isFinite(Number(g.amount)) && Number(g.amount) >= 0;
+    });
+    var amounts = lastGraphData.map(function (g, i) { return reported[i] ? Number(g.amount) : 0; });
     var maxVal = lastGraphMax;
     var count = lastGraphData.length;
     var step = w / (count - 1 || 1);
@@ -306,16 +314,14 @@
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    var labelInterval = Math.max(1, Math.floor(count / 5));
-    for (var li = 0; li < count; li += labelInterval) {
+    var labelCount = Math.min(count, Math.max(2, Math.min(6, Math.floor(w / 90) + 1)));
+    for (var label = 0; label < labelCount; label++) {
+      var li = Math.round(label * (count - 1) / (labelCount - 1 || 1));
       var lx = padding.left + li * step;
       var litem = lastGraphData[li];
-      var ltime;
-      if (litem && litem.created) {
-        ltime = new Date(litem.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-      } else {
-        ltime = (count - li) + 'h ago';
-      }
+      var ltime = litem && litem.created
+        ? new Date(litem.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        : (count - li) + 'h ago';
       ctx.fillText(ltime, lx, padding.top + h + 10);
     }
 
@@ -325,56 +331,93 @@
 
     var barW = Math.max(4, Math.min(18, step * 0.5));
     amounts.forEach(function (val, bi) {
-      var px = padding.left + bi * step;
+      if (!reported[bi] || val <= 0) return;
+      var px = points[bi].x;
       var bh = (val / maxVal) * h;
       var by = padding.top + h - bh;
-      ctx.fillStyle = (bi === hoveredIndex) ? 'rgba(59, 130, 246, 0.45)' : 'rgba(16, 185, 129, 0.15)';
+      var partial = lastGraphData[bi].status === 'partial';
+      ctx.fillStyle = (bi === hoveredIndex) ? 'rgba(59, 130, 246, 0.45)' :
+        (partial ? 'rgba(245, 158, 11, 0.23)' : 'rgba(16, 185, 129, 0.15)');
       ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(px - barW / 2, by, barW, bh, [3, 3, 0, 0]);
-      } else {
-        ctx.rect(px - barW / 2, by, barW, bh);
-      }
+      if (ctx.roundRect) ctx.roundRect(px - barW / 2, by, barW, bh, [3, 3, 0, 0]);
+      else ctx.rect(px - barW / 2, by, barW, bh);
       ctx.fill();
     });
 
-    if (points.length > 1) {
-      var areaGrad = ctx.createLinearGradient(0, padding.top, 0, padding.top + h);
-      areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
-      areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, padding.top + h);
-      ctx.lineTo(points[0].x, points[0].y);
-      for (var ai = 1; ai < points.length; ai++) ctx.lineTo(points[ai].x, points[ai].y);
-      ctx.lineTo(points[points.length - 1].x, padding.top + h);
-      ctx.closePath();
-      ctx.fillStyle = areaGrad;
-      ctx.fill();
+    // A missing bucket has no measured amount. Dashed baseline bridges the
+    // unknown hours; never draw a solid earnings line between distant reports.
+    ctx.save();
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    var inGap = false;
+    for (var gi = 0; gi < count; gi++) {
+      if (!reported[gi]) {
+        if (!inGap) {
+          var before = gi > 0 ? points[gi - 1] : points[gi];
+          ctx.moveTo(before.x, gi > 0 && reported[gi - 1] ? before.y : padding.top + h);
+        }
+        ctx.lineTo(points[gi].x, padding.top + h);
+        inGap = true;
+      } else if (inGap) {
+        ctx.lineTo(points[gi].x, points[gi].y);
+        inGap = false;
+      }
     }
+    ctx.stroke();
+    ctx.restore();
 
-    if (points.length > 1) {
-      ctx.save();
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (var si = 1; si < points.length; si++) ctx.lineTo(points[si].x, points[si].y);
-      ctx.stroke();
-      ctx.restore();
+    var areaGrad = ctx.createLinearGradient(0, padding.top, 0, padding.top + h);
+    areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+    areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+    for (var start = 0; start < count;) {
+      if (!reported[start] || lastGraphData[start].status === 'partial') { start++; continue; }
+      var end = start;
+      while (end + 1 < count && reported[end + 1] && lastGraphData[end + 1].status !== 'partial') end++;
+      if (end > start) {
+        ctx.beginPath();
+        ctx.moveTo(points[start].x, padding.top + h);
+        ctx.lineTo(points[start].x, points[start].y);
+        for (var ai = start + 1; ai <= end; ai++) ctx.lineTo(points[ai].x, points[ai].y);
+        ctx.lineTo(points[end].x, padding.top + h);
+        ctx.closePath();
+        ctx.fillStyle = areaGrad;
+        ctx.fill();
+
+        ctx.save();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(points[start].x, points[start].y);
+        for (var si = start + 1; si <= end; si++) ctx.lineTo(points[si].x, points[si].y);
+        ctx.stroke();
+        ctx.restore();
+      }
+      start = end + 1;
     }
 
     points.forEach(function (p, di) {
-      var isHovered = (di === hoveredIndex);
+      var isHovered = di === hoveredIndex;
+      var partial = lastGraphData[di].status === 'partial';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, isHovered ? 6 : 3, 0, Math.PI * 2);
-      ctx.fillStyle = isHovered ? '#34d399' : '#0f172a';
+      ctx.arc(p.x, p.y, isHovered ? 6 : (reported[di] ? 3 : 2), 0, Math.PI * 2);
+      ctx.fillStyle = reported[di] ? (isHovered ? '#34d399' : '#0f172a') : '#0f172a';
       ctx.fill();
       ctx.lineWidth = isHovered ? 2.5 : 1.5;
-      ctx.strokeStyle = isHovered ? '#ffffff' : '#10b981';
+      ctx.strokeStyle = isHovered ? '#ffffff' : (reported[di] ? (partial ? '#f59e0b' : '#10b981') : '#64748b');
       ctx.stroke();
     });
+
+    if (!reported.some(function (hasBucket) { return hasBucket; })) {
+      ctx.fillStyle = '#a1a1aa';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('No hourly income reported', rect.width / 2, padding.top + h / 2);
+    }
 
     if (hoveredIndex >= 0 && hoveredIndex < points.length) {
       var hp = points[hoveredIndex];
@@ -391,14 +434,17 @@
   }
 
   function renderChart(graph, ticker, usdPrice) {
-    lastGraphData = graph || [];
+    lastGraphData = Array.isArray(graph) ? graph : [];
     lastTicker = ticker || 'VTC';
     lastUsdPrice = usdPrice || 0;
+    hoveredIndex = -1;
+    touchPinned = -1;
     lastTipIdx = -1;
+    if (tooltip) tooltip.classList.remove('active');
     var m = 0.0001;
     for (var i = 0; i < lastGraphData.length; i++) {
-      var v = parseFloat(lastGraphData[i].amount) || 0;
-      if (v > m) m = v;
+      var v = lastGraphData[i].amount == null ? 0 : Number(lastGraphData[i].amount);
+      if (isFinite(v) && v > m) m = v;
     }
     lastGraphMax = m * 1.15;
     markChartDirty();
@@ -661,8 +707,16 @@
       setText('s-bal-pct', '--');
       setText('s-bal-need', 'payout threshold n/a');
     }
-    if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
+    if (payout.remaining != null && payout.remaining > 0 && data.stale) {
+      setText('s-bal-eta', 'ETA unavailable · pool data stale');
+    } else if (payout.remaining != null && payout.remaining > 0 && est.status === 'paused') {
+      setText('s-bal-eta', 'ETA paused · no workers online');
+    } else if (payout.remaining != null && payout.remaining > 0 && payout.ratePerHour > 0) {
       setText('s-bal-eta', '≈' + formatEta(payout.remaining / payout.ratePerHour) + ' to payout');
+    } else if (payout.remaining != null && payout.remaining > 0) {
+      setText('s-bal-eta', est.status === 'warming' ? 'ETA unavailable · warming up' :
+        (est.status === 'waiting' ? 'ETA unavailable · awaiting pool credits' :
+          'ETA unavailable · insufficient recent data'));
     } else {
       setText('s-bal-eta', '');
     }
@@ -673,9 +727,28 @@
 
     var estHour = num(est.perHour);
     var estDay = num(est.perDay);
-    setText('v-est', estHour.toFixed(4) + ' ' + ticker + '/h');
-    setText('s-est-d', estDay.toFixed(4) + ' ' + ticker + '/d');
-    setText('s-est-usd', usd(estDay) + ' USD');
+    if (data.stale) {
+      setText('v-est', 'N/A');
+      setText('s-est-d', 'Pool data stale');
+    } else if (est.available) {
+      setText('v-est', '≈' + estHour.toFixed(4) + ' ' + ticker + '/h');
+      setText('s-est-d', '≈' + estDay.toFixed(4) + ' ' + ticker + '/d' +
+        (est.confidence === 'early' ? ' · early estimate' : ''));
+    } else if (est.status === 'paused') {
+      setText('v-est', 'PAUSED');
+      setText('s-est-d', 'No workers online');
+    } else if (est.status === 'warming') {
+      setText('v-est', 'N/A');
+      setText('s-est-d', 'Warming up · ' + num(est.sampleHours) + '/3 reported hours');
+    } else if (est.status === 'waiting') {
+      setText('v-est', 'N/A');
+      setText('s-est-d', 'Awaiting recent pool credits');
+    } else {
+      setText('v-est', 'N/A');
+      setText('s-est-d', 'Worker data unavailable');
+    }
+    setText('s-est-usd', est.available && !data.stale ? usd(estDay) + ' USD/d' :
+      '24h reported: ' + num(est.observed24h).toFixed(4) + ' ' + ticker);
 
     var apiHour = num(income.hour);
     var api24 = num(income.day);
@@ -728,7 +801,9 @@
     renderPaymentsTable();
     buildPagination('paymentsPagination', pageState.payments, 'paymentsTableBody');
 
-    renderChart(data.profitGraph, ticker, price);
+    setText('chartNote', data.stale ? 'Snapshot stale · timeline paused' :
+      '24h credited: ' + num(est.observed24h).toFixed(4) + ' ' + ticker + ' · ' + num(est.missingHours) + 'h unreported');
+    renderChart(data.hourlyGraph || data.profitGraph, ticker, price);
   }
 
   function renderTable(tableBodyId, state) {
@@ -769,7 +844,7 @@
       if (!btn) return;
       var rel = evt.relatedTarget;
       if (rel && btn.contains && btn.contains(rel)) return;
-      if (btn !== tipBtn) return;
+      if (btn !== tipBtn || document.activeElement === btn) return;
       clearTipTimer();
       tipBtn = null;
       hideInfoTip();
@@ -782,6 +857,74 @@
       tipBtn = null;
       hideInfoTip();
     });
+
+    window.addEventListener('resize', scheduleInfoTipPosition);
+    window.addEventListener('scroll', scheduleInfoTipPosition, { passive: true, capture: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', scheduleInfoTipPosition);
+      window.visualViewport.addEventListener('scroll', scheduleInfoTipPosition);
+    }
+  }
+
+  function clampTip(value, min, max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  function positionInfoTip(bubble, btn) {
+    var viewport = window.visualViewport;
+    var viewLeft = viewport ? viewport.offsetLeft : 0;
+    var viewTop = viewport ? viewport.offsetTop : 0;
+    var viewWidth = viewport ? viewport.width : window.innerWidth;
+    var viewHeight = viewport ? viewport.height : window.innerHeight;
+    var margin = 12;
+    var gap = 10;
+    var rightEdge = viewLeft + viewWidth - margin;
+    var bottomEdge = viewTop + viewHeight - margin;
+    var rect = btn.getBoundingClientRect();
+
+    // Re-measure after a rotation or zoom, so the bubble never exceeds the visible viewport.
+    bubble.style.maxWidth = Math.max(0, viewWidth - margin * 2) + 'px';
+    bubble.style.maxHeight = Math.max(0, viewHeight - margin * 2) + 'px';
+    var bw = bubble.offsetWidth;
+    var bh = bubble.offsetHeight;
+    if (rect.bottom < viewTop || rect.top > viewTop + viewHeight ||
+        rect.right < viewLeft || rect.left > viewLeft + viewWidth) return false;
+
+    var left;
+    var top;
+    // Side placement works on desktop; narrow two-column cards need above/below placement.
+    if (viewWidth > 640 && rect.right + gap + bw <= rightEdge) {
+      left = rect.right + gap;
+      top = rect.top + rect.height / 2 - bh / 2;
+    } else if (viewWidth > 640 && rect.left - gap - bw >= viewLeft + margin) {
+      left = rect.left - gap - bw;
+      top = rect.top + rect.height / 2 - bh / 2;
+    } else {
+      left = rect.left + rect.width / 2 - bw / 2;
+      if (rect.bottom + gap + bh <= bottomEdge) {
+        top = rect.bottom + gap;
+      } else if (rect.top - gap - bh >= viewTop + margin) {
+        top = rect.top - gap - bh;
+      } else {
+        top = rect.top + rect.height / 2 - bh / 2;
+      }
+    }
+
+    bubble.style.left = clampTip(left, viewLeft + margin, rightEdge - bw) + 'px';
+    bubble.style.top = clampTip(top, viewTop + margin, bottomEdge - bh) + 'px';
+    return true;
+  }
+
+  function scheduleInfoTipPosition() {
+    if (!infoTip || !tipBtn || tipPositionPending) return;
+    tipPositionPending = true;
+    requestAnimationFrame(function () {
+      tipPositionPending = false;
+      if (infoTip && tipBtn && !positionInfoTip(infoTip, tipBtn)) {
+        tipBtn = null;
+        hideInfoTip();
+      }
+    });
   }
 
   function showInfoTip(btn, tip) {
@@ -792,22 +935,11 @@
     bubble.setAttribute('role', 'tooltip');
     document.body.appendChild(bubble);
 
-    var rect = btn.getBoundingClientRect();
-    var bw = bubble.offsetWidth;
-    var bh = bubble.offsetHeight;
-    var gap = 10;
-    var margin = 12;
-
-    var left = rect.right + gap;
-    if (left + bw > window.innerWidth - margin) {
-      left = rect.left - bw - gap;
+    if (!positionInfoTip(bubble, btn)) {
+      document.body.removeChild(bubble);
+      tipBtn = null;
+      return;
     }
-    var top = rect.top + rect.height / 2 - bh / 2;
-    if (top < margin) top = margin;
-    if (top + bh > window.innerHeight - margin) top = window.innerHeight - bh - margin;
-
-    bubble.style.left = left + 'px';
-    bubble.style.top = top + 'px';
     bubble.classList.add('show');
     infoTip = bubble;
   }
