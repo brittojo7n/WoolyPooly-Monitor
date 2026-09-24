@@ -33,7 +33,7 @@
 
     <div class="grid-4">
       <div class="card">
-        <div class="card-header"><span>Estimated</span><button type="button" class="info" data-tip="Average earnings rate over the last 24 hours." aria-label="Average earnings rate over the last 24 hours."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
+        <div class="card-header"><span>Estimated</span><button type="button" class="info" data-tip="Projected earnings from recent completed pool hours, only while workers are online. Pauses while idle; needs three reported hours after a gap." aria-label="Projected earnings from recent completed pool hours, only while workers are online. Pauses while idle; needs three reported hours after a gap."><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button></div>
         <div class="metric-value" id="v-est" style="color: #34d399;">0.0000</div>
         <div class="metric-sub" id="s-est-d">0.0000 /d</div>
         <div class="metric-sub" style="margin-top: 6px;" id="s-est-usd">$0.00 USD</div>
@@ -110,9 +110,9 @@
           <thead>
             <tr>
               <th>Metric</th>
-              <th>Reported</th>
-              <th>Estimated</th>
-              <th>Δ Difference%</th>
+              <th>Reported (past)</th>
+              <th>Projected (if mining)</th>
+              <th>vs past</th>
             </tr>
           </thead>
           <tbody id="comparisonTableBody">
@@ -125,13 +125,14 @@
     <div class="grid-main-chart">
       <div class="card">
         <div class="section-title">
-          <span>Hourly Graph Summary</span>
-          
+          <span>Hourly earnings</span>
+          <span class="chart-note" id="chartNote">Last 24 completed hours + current</span>
         </div>
         <div class="chart-container" id="chartContainer">
           <canvas id="velocityCanvas"></canvas>
           <div class="chart-tooltip" id="chartTooltip"></div>
         </div>
+        <div class="chart-key">Dashed = no reported bucket · Amber = provisional current hour</div>
       </div>
 
       <div class="card">
