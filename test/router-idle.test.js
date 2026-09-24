@@ -127,6 +127,87 @@ test('fresh pool snapshots recalculate the estimate when the current graph bucke
   assert.equal(data.apiHour, 0.036877746231);
 });
 
+test('an open SSE stream updates the estimate as the current API bucket grows', () => {
+  const script = `
+    const http = require('node:http');
+    const api = require('./lib/woolypooly');
+    let now = Date.parse('2026-09-24T14:45:00Z');
+    let currentAmount = 0.008;
+    Date.now = () => now;
+    const intervals = [];
+    const originalInterval = global.setInterval;
+    global.setInterval = (fn, ms) => { intervals.push(fn); return intervals.length; };
+    const router = require('./lib/router');
+    global.setInterval = originalInterval;
+    let requests = 0;
+    api.detectPoolForWallet = async () => 'vtc-1';
+    api.getCoinUsdPrice = async () => 0.04;
+    api.fetchPoolStats = async () => ({ modes: [] });
+    api.fetchAccountStats = async () => {
+      requests++;
+      return { workers: [{ offline: false }], workersOnline: 1, workersTotal: 1,
+        mode_stats: {}, stats: { balance: 4,
+          income: { income_Hour: 0.036877746231 },
+          minerProfitGraph: [
+            { created: '2026-09-24T04:00:00Z', amount: 0.4 },
+            { created: '2026-09-24T13:00:00Z', amount: 0.036877746231 },
+            { created: '2026-09-24T14:00:00Z', amount: currentAmount }
+          ] }
+      };
+    };
+    const server = http.createServer(router.handleRequest);
+    server.listen(0, '127.0.0.1', () => {
+      const url = 'http://127.0.0.1:' + server.address().port + '/api/stream?coin=vtc';
+      http.get(url, res => {
+        let buffer = '', events = [];
+        res.setEncoding('utf8');
+        res.on('data', chunk => {
+          buffer += chunk;
+          while (buffer.includes('\\n\\n')) {
+            const end = buffer.indexOf('\\n\\n');
+            const packet = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            if (!packet.startsWith('data: ')) continue;
+            const event = JSON.parse(packet.slice(6));
+            events.push({ available: event.estimated.available,
+              status: event.estimated.status, perHour: event.estimated.perHour,
+              current: event.hourlyGraph[24] });
+            if (events.length === 1) {
+              currentAmount = 0.0192;
+              now += 21000;
+              intervals[0]();
+            } else {
+              process.stdout.write(JSON.stringify({ requests, events,
+                apiHour: event.api.account.income.hour }));
+              res.destroy();
+              server.close(() => process.exit(0));
+            }
+          }
+        });
+      }).on('error', error => { console.error(error); process.exit(1); });
+    });
+  `;
+  const child = spawnSync(process.execPath, ['-e', script], {
+    cwd: path.join(__dirname, '..'), encoding: 'utf8', timeout: 5000,
+    env: { ...process.env, SERVER_PORT: '4075', WALLET: 'sample-vtc-wallet' }
+  });
+  assert.equal(child.status, 0, child.stderr);
+  const data = JSON.parse(child.stdout);
+  assert.equal(data.requests, 2);
+  assert.equal(data.events.length, 2);
+  assert.equal(data.events[0].available, true);
+  assert.equal(data.events[0].status, 'running');
+  assert.ok(Math.abs(data.events[0].perHour - (0.036877746231 + 0.008) / 2) < 1e-12);
+  assert.equal(data.events[0].current.amount, 0.008);
+  assert.equal(data.events[1].available, true);
+  assert.equal(data.events[1].status, 'running');
+  assert.ok(Math.abs(data.events[1].perHour - (0.036877746231 + 0.0192) / 2) < 1e-12);
+  assert.ok(data.events[1].perHour > data.events[0].perHour);
+  assert.equal(data.events[1].current.created, '2026-09-24T14:00:00.000Z');
+  assert.equal(data.events[1].current.amount, 0.0192);
+  assert.equal(data.apiHour, 0.036877746231);
+});
+
 test('an open SSE dashboard receives the new idle hour without a page reload', () => {
   const script = `
     const http = require('node:http');
