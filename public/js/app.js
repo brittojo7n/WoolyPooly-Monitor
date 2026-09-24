@@ -197,6 +197,7 @@
 
       var item = lastGraphData[idx];
       var reported = item.amount != null && isFinite(Number(item.amount)) && Number(item.amount) >= 0;
+      var waiting = !reported && item.status === 'pending';
       var amount = reported ? Number(item.amount) : 0;
       var pointX = padding.left + idx * step;
       var maxVal = lastGraphMax;
@@ -208,7 +209,9 @@
         var usdStr = reported && (amount * lastUsdPrice) > 0 ? '<div class="tt-usd">($' + (amount * lastUsdPrice).toFixed(4) + ' USD)</div>' : '';
         var partStr = reported && item.participation ? '<div class="tt-sub">Pool: ' + (item.participation * 100).toFixed(4) + '%</div>' : '';
         var subStr = reported ? '' : '<div class="tt-sub">N/A</div>';
-        tooltip.innerHTML = '<div class="tt-time">' + esc(dt) + '</div>' +
+        tooltip.innerHTML = waiting
+          ? '<div class="tt-val">Waiting</div><div class="tt-sub">for data</div>'
+          : '<div class="tt-time">' + esc(dt) + '</div>' +
           '<div class="tt-val">' + (reported ? amount.toFixed(4) + ' ' + esc(lastTicker) : 'Unreported') + '</div>' +
           usdStr + partStr + subStr;
         var ttHalf = tooltip.offsetWidth / 2 + 8;
@@ -331,19 +334,12 @@
     ctx.lineWidth = 1.5;
     ctx.setLineDash([]);
     ctx.beginPath();
-    var inGap = false;
-    for (var gi = 0; gi < count; gi++) {
-      if (!reported[gi]) {
-        if (!inGap) {
-          var before = gi > 0 ? points[gi - 1] : points[gi];
-          ctx.moveTo(before.x, gi > 0 && reported[gi - 1] ? before.y : padding.top + h);
-        }
-        ctx.lineTo(points[gi].x, padding.top + h);
-        inGap = true;
-      } else if (inGap) {
-        ctx.lineTo(points[gi].x, points[gi].y);
-        inGap = false;
-      }
+    for (var gi = 1; gi < count; gi++) {
+      var previousWaiting = !reported[gi - 1] && lastGraphData[gi - 1].status === 'pending';
+      var currentWaiting = !reported[gi] && lastGraphData[gi].status === 'pending';
+      if (previousWaiting || currentWaiting || (reported[gi - 1] && reported[gi])) continue;
+      ctx.moveTo(points[gi - 1].x, points[gi - 1].y);
+      ctx.lineTo(points[gi].x, points[gi].y);
     }
     ctx.stroke();
     ctx.restore();
