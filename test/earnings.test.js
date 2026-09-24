@@ -47,18 +47,67 @@ test('historical last 24h matches the pool while forward projections stop for an
   assert.equal(onlineWithoutCredits.available, false);
 });
 
-test('a new current-hour bucket appears immediately on the chart but is not projected until completed', () => {
+test('a current-hour API bucket starts an estimate immediately after a long graph gap', () => {
   const resumed = [...recorded, { created: '2026-09-24T14:00:00+00:00', amount: 0.05 }];
   const first = estimateRollingDay(resumed, at('2026-09-24T14:30:00Z'), { onlineWorkers: 1 });
   assert.equal(first.hourlyGraph[24].status, 'partial');
   assert.equal(first.hourlyGraph[24].amount, 0.05);
-  assert.equal(first.status, 'warming');
-  assert.equal(first.available, false);
+  assert.equal(first.status, 'running');
+  assert.equal(first.available, true);
+  assert.equal(first.sampleHours, 1);
+  assert.equal(first.spanHours, 1);
+  assert.equal(first.perHour, 0.05);
+  assert.ok(Math.abs(first.perDay - 1.2) < 1e-12);
+  assert.equal(first.confidence, 'early');
   assert.ok(!first.observed24h.toFixed(12).includes('NaN'));
 
   const oneCompleted = estimateRollingDay(resumed, at('2026-09-24T15:30:00Z'), { onlineWorkers: 1 });
   assert.equal(oneCompleted.sampleHours, 1);
+  assert.equal(oneCompleted.status, 'warming');
   assert.equal(oneCompleted.available, false);
+});
+
+test('a growing current bucket recalculates the cumulative post-gap average without double counting', () => {
+  const prior = { created: '2026-09-24T13:00:00Z', amount: 0.036877746231 };
+  const current = { created: '2026-09-24T14:00:00Z', amount: 0.008 };
+  const first = estimateRollingDay([...recorded, prior, current],
+    at('2026-09-24T14:45:00Z'), { onlineWorkers: 1 });
+  const updated = estimateRollingDay([...recorded, prior, { ...current, amount: 0.0192 }],
+    at('2026-09-24T14:45:00Z'), { onlineWorkers: 1 });
+
+  assert.equal(first.sampleHours, 2);
+  assert.equal(first.spanHours, 2);
+  assert.ok(Math.abs(first.perHour - (prior.amount + current.amount) / 2) < 1e-12);
+  assert.ok(Math.abs(updated.perHour - (prior.amount + 0.0192) / 2) < 1e-12);
+  assert.ok(updated.perHour > first.perHour);
+  assert.equal(updated.hourlyGraph[24].amount, 0.0192);
+  assert.equal(updated.hourlyGraph[24].created, '2026-09-24T14:00:00.000Z');
+
+  const nextPeriod = estimateRollingDay([
+    ...recorded, prior, { ...current, amount: 0.0192 },
+    { created: '2026-09-24T15:00:00Z', amount: 0.012 }
+  ], at('2026-09-24T15:15:00Z'), { onlineWorkers: 1 });
+  assert.equal(nextPeriod.hourlyGraph[23].amount, 0.0192);
+  assert.equal(nextPeriod.hourlyGraph[24].amount, 0.012);
+  assert.equal(nextPeriod.sampleHours, 3);
+  assert.equal(nextPeriod.spanHours, 3);
+  assert.ok(Math.abs(nextPeriod.perHour - (prior.amount + 0.0192 + 0.012) / 3) < 1e-12);
+});
+
+test('an active estimate uses the newest 24 hourly periods, including the current provisional bucket', () => {
+  const windowGraph = Array.from({ length: 25 }, (_, i) => ({
+    created: new Date(Date.UTC(2026, 8, 23, 14 + i)).toISOString(),
+    amount: i + 1
+  }));
+  const result = estimateRollingDay(windowGraph,
+    at('2026-09-24T14:30:00Z'), { onlineWorkers: 1 });
+
+  assert.equal(result.sampleHours, 24);
+  assert.equal(result.spanHours, 24);
+  assert.equal(result.hourlyGraph[24].amount, 25);
+  assert.equal(result.observed24h, 300);
+  assert.equal(result.perHour, 13.5);
+  assert.equal(result.perDay, 324);
 });
 
 test('a late pool credit is plotted but does not restart forecasts while workers remain offline', () => {
