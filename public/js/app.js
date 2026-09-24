@@ -330,21 +330,6 @@
       return { x: padding.left + pi * step, y: padding.top + h - (val / maxVal) * h, val: val };
     });
 
-    var barW = Math.max(4, Math.min(18, step * 0.5));
-    amounts.forEach(function (val, bi) {
-      if (!reported[bi] || val <= 0) return;
-      var px = points[bi].x;
-      var bh = (val / maxVal) * h;
-      var by = padding.top + h - bh;
-      var partial = lastGraphData[bi].status === 'partial';
-      ctx.fillStyle = (bi === hoveredIndex) ? 'rgba(59, 130, 246, 0.45)' :
-        (partial ? 'rgba(245, 158, 11, 0.23)' : 'rgba(16, 185, 129, 0.15)');
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(px - barW / 2, by, barW, bh, [3, 3, 0, 0]);
-      else ctx.rect(px - barW / 2, by, barW, bh);
-      ctx.fill();
-    });
-
     ctx.save();
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
     ctx.lineWidth = 1.5;
@@ -371,9 +356,9 @@
     areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
     areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
     for (var start = 0; start < count;) {
-      if (!reported[start] || lastGraphData[start].status === 'partial') { start++; continue; }
+      if (!reported[start]) { start++; continue; }
       var end = start;
-      while (end + 1 < count && reported[end + 1] && lastGraphData[end + 1].status !== 'partial') end++;
+      while (end + 1 < count && reported[end + 1]) end++;
       if (end > start) {
         ctx.beginPath();
         ctx.moveTo(points[start].x, padding.top + h);
@@ -394,21 +379,14 @@
         for (var si = start + 1; si <= end; si++) ctx.lineTo(points[si].x, points[si].y);
         ctx.stroke();
         ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(points[start].x, points[start].y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
       }
       start = end + 1;
     }
-
-    points.forEach(function (p, di) {
-      var isHovered = di === hoveredIndex;
-      var partial = lastGraphData[di].status === 'partial';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, isHovered ? 6 : (reported[di] ? 3 : 2), 0, Math.PI * 2);
-      ctx.fillStyle = reported[di] ? (isHovered ? '#34d399' : '#0f172a') : '#0f172a';
-      ctx.fill();
-      ctx.lineWidth = isHovered ? 2.5 : 1.5;
-      ctx.strokeStyle = isHovered ? '#ffffff' : (reported[di] ? (partial ? '#f59e0b' : '#10b981') : '#64748b');
-      ctx.stroke();
-    });
 
     if (!reported.some(function (hasBucket) { return hasBucket; })) {
       ctx.fillStyle = '#a1a1aa';
@@ -429,6 +407,14 @@
       ctx.lineTo(hp.x, padding.top + h);
       ctx.stroke();
       ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#34d399';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
     }
   }
 
