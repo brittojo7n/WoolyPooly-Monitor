@@ -3,8 +3,6 @@ const test = require('node:test');
 const { buildHourlyGraph, estimateRollingDay } = require('../lib/estimator');
 const { processMetrics } = require('../lib/metrics');
 
-// Hourly amounts from an idle VTC account's pool response on 2026-09-24.
-// The pool omits subsequent hours rather than appending zero-valued entries.
 const amounts = [
   0.127681441704, 0.055046540790, 0.129614473597, 0.094986018423,
   0.043595186783, 0.081102934665, 0.082931306885, 0.166527130670,
@@ -18,7 +16,6 @@ const recorded = amounts.map((amount, i) => ({
 }));
 const at = iso => Date.parse(iso);
 
-// 07:30 UTC is 13:00 IST; the most recent pool bucket is 04:00 UTC / 09:30 IST.
 const idleTime = at('2026-09-24T07:30:00Z');
 
 test('clock-based chart places real reports, omitted completed hours and current hour at their correct UTC slots', () => {
@@ -30,13 +27,13 @@ test('clock-based chart places real reports, omitted completed hours and current
   assert.equal(hours[22].created, '2026-09-24T05:00:00.000Z');
   assert.deepEqual([hours[22].status, hours[23].status, hours[24].status],
     ['unreported', 'unreported', 'pending']);
-  assert.equal(hours[22].amount, null); // unknown/unreported is not a measured zero
+  assert.equal(hours[22].amount, null);
   assert.equal(hours[24].created, '2026-09-24T07:00:00.000Z');
 });
 
 test('historical last 24h matches the pool while forward projections stop for an offline wallet', () => {
   const result = estimateRollingDay(recorded, idleTime, { onlineWorkers: 0 });
-  assert.ok(Math.abs(result.observed24h - 2.059997975550) < 1e-12); // income_Day from pool
+  assert.ok(Math.abs(result.observed24h - 2.059997975550) < 1e-12);
   assert.equal(result.reportedHours, 22);
   assert.equal(result.missingHours, 2);
   assert.equal(result.lastReportedAt, '2026-09-24T04:00:00.000Z');
@@ -45,7 +42,6 @@ test('historical last 24h matches the pool while forward projections stop for an
   assert.equal(result.perHour, 0);
   assert.equal(result.perDay, 0);
 
-  // A worker marked online but still without recent credits must not reuse the old streak.
   const onlineWithoutCredits = estimateRollingDay(recorded, idleTime, { onlineWorkers: 1 });
   assert.equal(onlineWithoutCredits.status, 'waiting');
   assert.equal(onlineWithoutCredits.available, false);
@@ -101,13 +97,13 @@ test('one unreported hour within a live run is included in the clock-hour denomi
   assert.equal(result.sampleHours, 3);
   assert.equal(result.spanHours, 4);
   assert.ok(Math.abs(result.perHour - 0.6 / 4) < 1e-12);
-  assert.equal(result.hourlyGraph[21].status, 'unreported'); // 15:00 UTC
+  assert.equal(result.hourlyGraph[21].status, 'unreported');
 });
 
 test('invalid entries are ignored and later revisions replace, not double-count, a bucket', () => {
   const graph = [
     { created: 'invalid', amount: 0.1 },
-    { created: '2026-09-24T15:00:00Z', amount: 99 }, // future
+    { created: '2026-09-24T15:00:00Z', amount: 99 },
     { created: '2026-09-24T14:00:00Z', amount: -1 },
     { created: '2026-09-24T14:00:00Z', amount: 0.1 },
     { created: '2026-09-24T14:00:00Z', amount: 0.2 }

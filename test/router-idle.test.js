@@ -4,7 +4,6 @@ const path = require('node:path');
 const test = require('node:test');
 
 test('a fresh but unchanged pool response advances the timeline at the next UTC hour', () => {
-  // Run in a child: the router's SSE/refresh intervals intentionally stay alive.
   const script = `
     const http = require('node:http');
     const api = require('./lib/woolypooly');
@@ -49,18 +48,18 @@ test('a fresh but unchanged pool response advances the timeline at the next UTC 
   });
   assert.equal(child.status, 0, child.stderr);
   const data = JSON.parse(child.stdout);
-  assert.equal(data.requests, 2); // genuinely fetched twice, not merely a client-side clock trick
+  assert.equal(data.requests, 2);
   assert.equal(data.first.created, '2026-09-24T07:00:00.000Z');
   assert.equal(data.second.created, '2026-09-24T08:00:00.000Z');
   assert.equal(data.first.status, 'pending');
   assert.equal(data.second.status, 'pending');
   assert.ok(Math.abs(data.before - 0.5) < 1e-12);
-  assert.ok(Math.abs(data.after - 0.4) < 1e-12); // old hour falls out despite unchanged API response
+  assert.ok(Math.abs(data.after - 0.4) < 1e-12);
   assert.equal(data.status, 'paused');
   assert.equal(data.eta, null);
   assert.equal(data.stale, false);
   assert.equal(data.staleAfterOutage, true);
-  assert.equal(data.frozenHour, data.second.created); // an outage must not fabricate empty hours
+  assert.equal(data.frozenHour, data.second.created);
 });
 
 test('an open SSE dashboard receives the new idle hour without a page reload', () => {
@@ -101,7 +100,7 @@ test('an open SSE dashboard receives the new idle hour without a page reload', (
             events.push(JSON.parse(packet.slice(6)));
             if (events.length === 1) {
               now = Date.parse('2026-09-24T08:01:00Z');
-              intervals[0](); // scheduled active-feed refresh
+              intervals[0]();
             } else {
               process.stdout.write(JSON.stringify({ requests,
                 hours: events.map(event => event.hourlyGraph[24].created),

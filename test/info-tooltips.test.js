@@ -6,7 +6,6 @@ const vm = require('node:vm');
 
 const app = fs.readFileSync(path.join(__dirname, '..', 'public/js/app.js'), 'utf8');
 
-// Run the actual browser script with just enough DOM to exercise its tooltip events.
 function createPage(width, height, options = {}) {
   const documentEvents = {};
   const windowEvents = {};
@@ -39,7 +38,6 @@ function createPage(width, height, options = {}) {
         classList: { add() {}, remove() {} },
         setAttribute() {},
         get offsetWidth() {
-          // The CSS rule is width: min(240px, 100vw - 24px).
           return Math.min(240, window.innerWidth - 24, Number.parseFloat(this.style.maxWidth) || Infinity);
         },
         get offsetHeight() {
@@ -151,7 +149,6 @@ test('active tooltip repositions after rotation and disappears when its icon scr
   const page = createPage(900, 700);
   let button = rect(550, 180);
   page.show(() => button);
-  // The button's bounding rect changes when the page rotates or scrolls.
   page.window.innerWidth = 320;
   page.window.innerHeight = 568;
   button = rect(150, 180);
