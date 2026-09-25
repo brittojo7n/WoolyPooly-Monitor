@@ -60,6 +60,12 @@ function initChart() {
   window.addEventListener('resize', function () {
     if (state.graphData) markChartDirty();
   });
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && state.chartDirty) {
+      drawCanvasChart();
+    }
+  });
 }
 
 function handlePointer(clientX, type, isTouch) {
@@ -116,7 +122,7 @@ function handlePointer(clientX, type, isTouch) {
     var ttHalf = state.tooltip.offsetWidth / 2 + 8;
     var tipX = Math.max(ttHalf, Math.min(rect.width - ttHalf, pointX));
     var tipY = Math.max(25, pointY);
-    state.tooltip.style.transform = 'translate(' + tipX + 'px,' + tipY + 'px) translate(-50%, calc(-100% - 14px))';
+    state.tooltip.style.transform = 'translate(' + tipX + 'px,' + tipY + 'px) translate(-50%, calc(-100% - 14px)) translateZ(0)';
     state.tooltip.classList.add('active');
     state.lastTipIdx = idx;
   }

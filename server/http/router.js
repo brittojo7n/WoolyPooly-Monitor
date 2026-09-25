@@ -230,6 +230,8 @@ async function handleDebugWoolypooly(req, res, searchParams) {
 }
 
 const GZIP_TYPES = new Set(['text/html', 'text/css', 'text/javascript', 'application/json', 'image/svg+xml']);
+const staticCache = new Map();
+const gzipCache = new Map();
 
 function sendBuffer(res, statusCode, contentType, buffer, extraHeaders) {
   const headers = Object.assign({
@@ -384,6 +386,7 @@ function handleRequest(req, res) {
 }
 
 setInterval(() => {
+  if (sseClients.length === 0 && feeds.size === 0) return;
   const now = Date.now();
   const activeKeys = new Set(sseClients.map(c => c.key));
   for (const [key, feed] of feeds) {
@@ -396,6 +399,7 @@ setInterval(() => {
 }, config.REFRESH_INTERVAL_MS);
 
 setInterval(() => {
+  if (sseClients.length === 0) return;
   sseClients.forEach(client => {
     try {
       client.res.write(': ping\n\n');

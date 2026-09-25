@@ -58,6 +58,7 @@ function checkRateLimit(ip) {
 }
 
 setInterval(() => {
+  if (clients.size === 0) return;
   const now = Date.now();
   for (const [ip, record] of clients.entries()) {
     if (now > record.blockedUntil && (!record.timestamps.length || now - record.timestamps[record.timestamps.length - 1] > WINDOW_MS * 2)) {
