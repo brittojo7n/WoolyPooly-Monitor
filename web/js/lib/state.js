@@ -18,6 +18,7 @@ const state = {
   infoTip: null,
   tipTimer: null,
   tipBtn: null,
+  tipShownAt: 0,
   tipPositionPending: false,
   walletCopyTimer: null
 };

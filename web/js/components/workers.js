@@ -16,9 +16,9 @@ function workerRow(w) {
         '<span class="worker-name truncate-text" data-full-text="' + nameEsc + '">' + nameEsc + '</span>' +
       '</div>' +
     '</td>' +
-    '<td><span class="truncate-text" data-full-text="' + esc(hr1) + '">' + esc(hr1) + '</span></td>' +
-    '<td><span class="truncate-text" data-full-text="' + esc(hr2) + '">' + esc(hr2) + '</span></td>' +
-    '<td><span class="truncate-text" data-full-text="' + esc(hr3) + '">' + esc(hr3) + '</span></td></tr>';
+    '<td class="worker-hr">' + esc(hr1) + '</td>' +
+    '<td class="worker-hr">' + esc(hr2) + '</td>' +
+    '<td class="worker-hr">' + esc(hr3) + '</td></tr>';
 }
 
 function renderWorkersTable() {

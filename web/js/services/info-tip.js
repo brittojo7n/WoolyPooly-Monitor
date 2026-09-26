@@ -1,5 +1,11 @@
 import state from '../lib/state.js';
 
+var lastTouchTime = 0;
+
+function markTouch() {
+  lastTouchTime = Date.now();
+}
+
 function clearTipTimer() {
   if (state.tipTimer) {
     clearTimeout(state.tipTimer);
@@ -88,6 +94,7 @@ function showInfoTip(targetEl, tip) {
   bubble.classList.add('show');
   state.infoTip = bubble;
   state.tipBtn = targetEl;
+  state.tipShownAt = Date.now();
 }
 
 function hideInfoTip() {
@@ -100,6 +107,7 @@ function hideInfoTip() {
     state.infoTip = null;
   }
   state.tipBtn = null;
+  state.tipShownAt = 0;
 }
 
 function resolveTipTarget(evtTarget) {
@@ -133,7 +141,24 @@ function resolveTipTarget(evtTarget) {
 }
 
 function initInfoTips() {
+  document.addEventListener('touchstart', markTouch, { passive: true, capture: true });
+  document.addEventListener('pointerdown', function (evt) {
+    if (evt.pointerType === 'touch') {
+      markTouch();
+    }
+    if (state.infoTip) {
+      var target = resolveTipTarget(evt.target);
+      if (!target || target.el !== state.tipBtn) {
+        if (!state.infoTip.contains(evt.target)) {
+          hideInfoTip();
+        }
+      }
+    }
+  }, { passive: true, capture: true });
+
   document.addEventListener('mouseover', function (evt) {
+    if (Date.now() - lastTouchTime < 700) return;
+
     var target = resolveTipTarget(evt.target);
     if (!target) return;
     if (target.el === state.tipBtn && (state.infoTip || state.tipTimer)) return;
@@ -146,6 +171,8 @@ function initInfoTips() {
   });
 
   document.addEventListener('focusin', function (evt) {
+    if (Date.now() - lastTouchTime < 700) return;
+
     var target = resolveTipTarget(evt.target);
     if (!target) return;
     clearTipTimer();
@@ -153,23 +180,36 @@ function initInfoTips() {
   });
 
   document.addEventListener('mouseout', function (evt) {
+    if (Date.now() - lastTouchTime < 700) return;
+
     var target = resolveTipTarget(evt.target);
     if (!target) return;
     var rel = evt.relatedTarget;
     if (rel && target.el.contains && target.el.contains(rel)) return;
-    if (target.el !== state.tipBtn || document.activeElement === target.el) return;
+    if (target.el !== state.tipBtn) return;
     clearTipTimer();
     hideInfoTip();
   });
 
   document.addEventListener('focusout', function (evt) {
+    if (Date.now() - lastTouchTime < 700) return;
+
     var target = resolveTipTarget(evt.target);
     if (!target) return;
     clearTipTimer();
     hideInfoTip();
   });
 
+  document.addEventListener('keydown', function (evt) {
+    if (evt.key === 'Escape' || evt.key === 'Esc') {
+      if (state.infoTip) {
+        hideInfoTip();
+      }
+    }
+  });
+
   document.addEventListener('click', function (evt) {
+    var isTouch = Date.now() - lastTouchTime < 700;
     var target = resolveTipTarget(evt.target);
     if (!target) {
       if (state.infoTip) {
@@ -178,11 +218,22 @@ function initInfoTips() {
       return;
     }
 
-    if (state.tipBtn === target.el && state.infoTip) {
-      hideInfoTip();
+    if (isTouch) {
+      if (state.tipBtn === target.el && state.infoTip) {
+        hideInfoTip();
+      } else {
+        clearTipTimer();
+        showInfoTip(target.el, target.tip);
+      }
     } else {
+      // Desktop mouse click: keep tooltip visible and avoid sticky focus
       clearTipTimer();
-      showInfoTip(target.el, target.tip);
+      if (!state.infoTip || state.tipBtn !== target.el) {
+        showInfoTip(target.el, target.tip);
+      }
+      if (typeof target.el.blur === 'function') {
+        target.el.blur();
+      }
     }
   });
 

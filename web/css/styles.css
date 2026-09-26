@@ -762,15 +762,13 @@ tr:last-child td {
 
 .workers-card table {
   width: 100%;
-  min-width: 440px;
+  min-width: 480px;
   table-layout: fixed;
 }
 
 .workers-card th,
 .workers-card td {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .workers-card th:first-child,
@@ -779,8 +777,10 @@ tr:last-child td {
   left: 0;
   background: var(--surface-1);
   z-index: 2;
-  width: calc(100% - 285px);
-  min-width: 140px;
+  width: 28%;
+  min-width: 135px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .workers-card thead th:first-child {
@@ -797,13 +797,21 @@ tr:last-child td {
 .workers-card td:nth-child(3),
 .workers-card th:nth-child(4),
 .workers-card td:nth-child(4) {
-  width: 95px;
-  min-width: 95px;
+  width: 24%;
+  min-width: 115px;
 }
 
 .worker-col {
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.worker-hr {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .worker-item {
