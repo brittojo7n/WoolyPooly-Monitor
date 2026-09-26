@@ -11,7 +11,7 @@ const state = {
   touchPinned: -1,
   lastTipIdx: -1,
   payloadKey: null,
-  workers: { page: 1, pageSize: 4, data: [] },
+  workers: { page: 1, pageSize: 5, data: [] },
   payments: { page: 1, pageSize: 5, data: [] },
   elCache: new Map(),
   chartDirty: false,

@@ -130,11 +130,12 @@ function updateUI(data) {
   if (cmp && data.comparisons) {
     var html = '';
     data.comparisons.forEach(function (c) {
+      var d = c.delta == null ? '—' : c.delta;
       html += '<tr>' +
-        '<td style="font-weight: 600;">' + esc(c.label) + '</td>' +
-        '<td style="color: #38bdf8;">' + esc(c.api) + '</td>' +
-        '<td style="color: #34d399; font-weight: 700;">' + esc(c.estimated) + '</td>' +
-        '<td>' + esc(c.delta == null ? '—' : c.delta) + '</td></tr>';
+        '<td style="font-weight: 600;"><span class="truncate-text" data-full-text="' + esc(c.label) + '">' + esc(c.label) + '</span></td>' +
+        '<td style="color: #38bdf8;"><span class="truncate-text" data-full-text="' + esc(c.api) + '">' + esc(c.api) + '</span></td>' +
+        '<td style="color: #34d399; font-weight: 700;"><span class="truncate-text" data-full-text="' + esc(c.estimated) + '">' + esc(c.estimated) + '</span></td>' +
+        '<td><span class="truncate-text" data-full-text="' + esc(d) + '">' + esc(d) + '</span></td></tr>';
     });
     cmp.innerHTML = html;
   }

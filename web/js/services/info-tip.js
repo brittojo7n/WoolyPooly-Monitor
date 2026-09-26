@@ -11,7 +11,14 @@ function clampTip(value, min, max) {
   return Math.max(min, Math.min(value, max));
 }
 
-function positionInfoTip(bubble, btn) {
+function isTextTruncated(el) {
+  if (!el) return false;
+  var inner = el.querySelector ? el.querySelector('.truncate-text, .worker-name') : null;
+  var target = inner || el;
+  return target.scrollWidth > Math.ceil(target.clientWidth) + 1;
+}
+
+function positionInfoTip(bubble, targetEl) {
   var viewport = window.visualViewport;
   var viewLeft = viewport ? viewport.offsetLeft : 0;
   var viewTop = viewport ? viewport.offsetTop : 0;
@@ -21,7 +28,7 @@ function positionInfoTip(bubble, btn) {
   var gap = 10;
   var rightEdge = viewLeft + viewWidth - margin;
   var bottomEdge = viewTop + viewHeight - margin;
-  var rect = btn.getBoundingClientRect();
+  var rect = targetEl.getBoundingClientRect();
 
   bubble.style.maxWidth = Math.max(0, viewWidth - margin * 2) + 'px';
   bubble.style.maxHeight = Math.max(0, viewHeight - margin * 2) + 'px';
@@ -60,13 +67,12 @@ function scheduleInfoTipPosition() {
   requestAnimationFrame(function () {
     state.tipPositionPending = false;
     if (state.infoTip && state.tipBtn && !positionInfoTip(state.infoTip, state.tipBtn)) {
-      state.tipBtn = null;
       hideInfoTip();
     }
   });
 }
 
-function showInfoTip(btn, tip) {
+function showInfoTip(targetEl, tip) {
   hideInfoTip();
   var bubble = document.createElement('div');
   bubble.className = 'info-tip';
@@ -74,66 +80,110 @@ function showInfoTip(btn, tip) {
   bubble.setAttribute('role', 'tooltip');
   document.body.appendChild(bubble);
 
-  if (!positionInfoTip(bubble, btn)) {
+  if (!positionInfoTip(bubble, targetEl)) {
     document.body.removeChild(bubble);
     state.tipBtn = null;
     return;
   }
   bubble.classList.add('show');
   state.infoTip = bubble;
+  state.tipBtn = targetEl;
 }
 
 function hideInfoTip() {
-  if (!state.infoTip) return;
-  if (state.infoTip.parentNode) state.infoTip.parentNode.removeChild(state.infoTip);
-  state.infoTip = null;
+  if (state.tipTimer) {
+    clearTimeout(state.tipTimer);
+    state.tipTimer = null;
+  }
+  if (state.infoTip) {
+    if (state.infoTip.parentNode) state.infoTip.parentNode.removeChild(state.infoTip);
+    state.infoTip = null;
+  }
+  state.tipBtn = null;
+}
+
+function resolveTipTarget(evtTarget) {
+  if (!evtTarget || !evtTarget.closest) return null;
+
+  var infoBtn = evtTarget.closest('.info');
+  if (infoBtn) {
+    var tip = infoBtn.getAttribute('data-tip');
+    if (tip) return { el: infoBtn, tip: tip, isWorker: false };
+  }
+
+  var tipEl = evtTarget.closest('[data-tip]');
+  if (tipEl) {
+    var tip = tipEl.getAttribute('data-tip');
+    if (tip) return { el: tipEl, tip: tip, isWorker: false };
+  }
+
+  var truncTarget = evtTarget.closest('.truncate-text, .worker-name, .metric-value, .metric-sub, td, th, .price-pill, .bar-pct');
+  if (truncTarget) {
+    if (isTextTruncated(truncTarget)) {
+      var targetInner = truncTarget.querySelector ? truncTarget.querySelector('[data-full-text], [data-worker-name]') : null;
+      var effectiveEl = targetInner || truncTarget;
+      var text = effectiveEl.getAttribute('data-full-text') ||
+                 effectiveEl.getAttribute('data-worker-name') ||
+                 effectiveEl.textContent.trim();
+      if (text) return { el: truncTarget, tip: text, isWorker: true };
+    }
+  }
+
+  return null;
 }
 
 function initInfoTips() {
   document.addEventListener('mouseover', function (evt) {
-    var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-    if (!btn) return;
-    if (btn === state.tipBtn && (state.infoTip || state.tipTimer)) return;
+    var target = resolveTipTarget(evt.target);
+    if (!target) return;
+    if (target.el === state.tipBtn && (state.infoTip || state.tipTimer)) return;
     clearTipTimer();
-    state.tipBtn = btn;
-    var tip = btn.getAttribute('data-tip');
-    if (!tip) {
-      state.tipBtn = null;
-      return;
-    }
+    state.tipBtn = target.el;
     state.tipTimer = setTimeout(function () {
       state.tipTimer = null;
-      showInfoTip(btn, tip);
-    }, 100);
+      showInfoTip(target.el, target.tip);
+    }, target.isWorker ? 60 : 100);
   });
 
   document.addEventListener('focusin', function (evt) {
-    var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-    if (!btn) return;
-    var tip = btn.getAttribute('data-tip');
-    if (!tip) return;
+    var target = resolveTipTarget(evt.target);
+    if (!target) return;
     clearTipTimer();
-    state.tipBtn = btn;
-    showInfoTip(btn, tip);
+    showInfoTip(target.el, target.tip);
   });
 
   document.addEventListener('mouseout', function (evt) {
-    var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-    if (!btn) return;
+    var target = resolveTipTarget(evt.target);
+    if (!target) return;
     var rel = evt.relatedTarget;
-    if (rel && btn.contains && btn.contains(rel)) return;
-    if (btn !== state.tipBtn || document.activeElement === btn) return;
+    if (rel && target.el.contains && target.el.contains(rel)) return;
+    if (target.el !== state.tipBtn || document.activeElement === target.el) return;
     clearTipTimer();
-    state.tipBtn = null;
     hideInfoTip();
   });
 
   document.addEventListener('focusout', function (evt) {
-    var btn = evt.target && (evt.target.closest ? evt.target.closest('.info') : null);
-    if (!btn) return;
+    var target = resolveTipTarget(evt.target);
+    if (!target) return;
     clearTipTimer();
-    state.tipBtn = null;
     hideInfoTip();
+  });
+
+  document.addEventListener('click', function (evt) {
+    var target = resolveTipTarget(evt.target);
+    if (!target) {
+      if (state.infoTip) {
+        hideInfoTip();
+      }
+      return;
+    }
+
+    if (state.tipBtn === target.el && state.infoTip) {
+      hideInfoTip();
+    } else {
+      clearTipTimer();
+      showInfoTip(target.el, target.tip);
+    }
   });
 
   window.addEventListener('resize', scheduleInfoTipPosition);
@@ -144,4 +194,4 @@ function initInfoTips() {
   }
 }
 
-export { initInfoTips, clearTipTimer, hideInfoTip };
+export { initInfoTips, clearTipTimer, hideInfoTip, isTextTruncated };

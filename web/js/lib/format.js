@@ -13,6 +13,9 @@ function formatEta(hours) {
 function formatHashrateClient(hashesPerSec) {
   var h = typeof hashesPerSec === 'number' && isFinite(hashesPerSec) ? hashesPerSec : 0;
   if (h <= 0) return '0.00 H/s';
+  if (h >= 1e21) return (h / 1e21).toFixed(2) + ' ZH/s';
+  if (h >= 1e18) return (h / 1e18).toFixed(2) + ' EH/s';
+  if (h >= 1e15) return (h / 1e15).toFixed(2) + ' PH/s';
   if (h >= 1e12) return (h / 1e12).toFixed(2) + ' TH/s';
   if (h >= 1e9) return (h / 1e9).toFixed(2) + ' GH/s';
   if (h >= 1e6) return (h / 1e6).toFixed(2) + ' MH/s';
