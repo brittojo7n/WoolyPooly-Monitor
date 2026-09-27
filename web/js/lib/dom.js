@@ -11,7 +11,9 @@ function el(id) {
 
 function setText(id, txt) {
   var node = el(id);
-  if (node) node.textContent = txt;
+  if (node && node.textContent !== txt) {
+    node.textContent = txt;
+  }
 }
 
 export { el, setText };
