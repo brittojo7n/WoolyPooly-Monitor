@@ -230,8 +230,6 @@ async function handleDebugWoolypooly(req, res, searchParams) {
 }
 
 const GZIP_TYPES = new Set(['text/html', 'text/css', 'text/javascript', 'application/json', 'image/svg+xml']);
-const staticCache = new Map();
-const gzipCache = new Map();
 
 function sendBuffer(res, statusCode, contentType, buffer, extraHeaders) {
   const headers = Object.assign({

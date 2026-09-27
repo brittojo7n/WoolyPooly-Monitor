@@ -12,7 +12,7 @@ const state = {
   lastTipIdx: -1,
   payloadKey: null,
   workers: { page: 1, pageSize: 5, data: [] },
-  payments: { page: 1, pageSize: 5, data: [] },
+  payments: { page: 1, pageSize: 5, data: [], rawData: [], sortBy: null, sortDir: null },
   elCache: new Map(),
   chartDirty: false,
   infoTip: null,

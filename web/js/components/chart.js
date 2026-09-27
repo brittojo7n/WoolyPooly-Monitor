@@ -86,8 +86,8 @@ function handlePointer(clientX, type, isTouch) {
     return;
   }
 
-  var step = w / (count - 1 || 1);
-  var idx = Math.max(0, Math.min(count - 1, Math.round((x - padding.left) / step)));
+  var slotW = w / count;
+  var idx = Math.max(0, Math.min(count - 1, Math.floor((x - padding.left) / slotW)));
   if (type === 'touchstart' && idx === state.touchPinned) {
     state.touchPinned = -1;
     state.hoveredIndex = -1;
@@ -104,7 +104,7 @@ function handlePointer(clientX, type, isTouch) {
   var reported = item.amount != null && isFinite(Number(item.amount)) && Number(item.amount) >= 0;
   var waiting = !reported && item.status === 'pending';
   var amount = reported ? Number(item.amount) : 0;
-  var pointX = padding.left + idx * step;
+  var pointX = padding.left + (idx + 0.5) * slotW;
   var maxVal = state.graphMax;
   var h = rect.height - padding.top - padding.bottom;
   var pointY = padding.top + h - (amount / maxVal) * h;
@@ -161,7 +161,7 @@ function drawCanvasChart() {
   var amounts = state.graphData.map(function (g, i) { return reported[i] ? Number(g.amount) : 0; });
   var maxVal = state.graphMax;
   var count = state.graphData.length;
-  var step = w / (count - 1 || 1);
+  var slotW = w / count;
 
   var gridCount = 4;
   ctx.strokeStyle = '#1e293b';
@@ -202,62 +202,34 @@ function drawCanvasChart() {
 
   for (var li = 0; li < labelIndices.length; li++) {
     var index = labelIndices[li];
-    var lx = padding.left + index * step;
+    var lx = padding.left + (index + 0.5) * slotW;
     var litem = state.graphData[index];
     var ltime = litem && litem.created
       ? new Date(litem.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
       : (count - index) + 'h ago';
 
-    if (index === count - 1) {
-      ctx.textAlign = 'right';
-    } else if (index === 0) {
-      ctx.textAlign = 'left';
-    } else {
-      ctx.textAlign = 'center';
-    }
-
+    ctx.textAlign = 'center';
     ctx.fillText(ltime, lx, padding.top + h + 10);
   }
 
-  var points = amounts.map(function (val, pi) {
-    return { x: padding.left + pi * step, y: padding.top + h - (val / maxVal) * h, val: val };
-  });
+  var gap = Math.max(2, Math.round(slotW * 0.2));
+  var barW = Math.max(1, slotW - gap);
 
-  var areaGrad = ctx.createLinearGradient(0, padding.top, 0, padding.top + h);
-  areaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
-  areaGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  if (state.hoveredIndex >= 0 && state.hoveredIndex < count) {
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+    ctx.fillRect(padding.left + state.hoveredIndex * slotW, padding.top, slotW, h);
+  }
 
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, padding.top + h);
-  ctx.lineTo(points[0].x, points[0].y);
-  for (var ai = 1; ai < count; ai++) ctx.lineTo(points[ai].x, points[ai].y);
-  ctx.lineTo(points[count - 1].x, padding.top + h);
-  ctx.closePath();
-  ctx.fillStyle = areaGrad;
-  ctx.fill();
+  for (var bi = 0; bi < count; bi++) {
+    var val = amounts[bi];
+    var barH = maxVal > 0 ? (val / maxVal) * h : 0;
+    var bx = padding.left + bi * slotW + (slotW - barW) / 2;
+    var by = padding.top + h - barH;
 
-  ctx.save();
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 2.5;
-  ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
-  ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (var li = 1; li < count; li++) ctx.lineTo(points[li].x, points[li].y);
-  ctx.stroke();
-  ctx.restore();
-
-  if (state.hoveredIndex >= 0 && state.hoveredIndex < points.length) {
-    var hp = points[state.hoveredIndex];
-    ctx.save();
-    ctx.strokeStyle = '#3b82f6';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(hp.x, padding.top);
-    ctx.lineTo(hp.x, padding.top + h);
-    ctx.stroke();
-    ctx.restore();
+    if (barH > 0) {
+      ctx.fillStyle = (bi === state.hoveredIndex) ? '#3b82f6' : '#10b981';
+      ctx.fillRect(bx, by, barW, barH);
+    }
   }
 }
 
@@ -278,4 +250,4 @@ function renderChart(graph, ticker, usdPrice) {
   markChartDirty();
 }
 
-export { initChart, renderChart, markChartDirty, drawCanvasChart };
+export { initChart, renderChart };

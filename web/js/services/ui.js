@@ -141,7 +141,7 @@ function updateUI(data) {
   }
 
   state.workers.data = Array.isArray(data.workers) ? data.workers : [];
-  state.payments.data = Array.isArray(data.payments) ? data.payments : [];
+  state.payments.rawData = Array.isArray(data.payments) ? data.payments : [];
 
   renderWorkersTable();
   buildPagination('workersPagination', state.workers, renderWorkersTable);
