@@ -17,11 +17,10 @@ A lightweight, real-time web dashboard for monitoring your WoolyPooly mining sta
 
    Open `.env` in a text editor and fill in your values:
 
-   | Variable           | Description                                    |
-   | ------------------ | ---------------------------------------------- |
-   | `SERVER_PORT`      | Port to serve the dashboard on (default `4070`)|
-   | `WALLET`           | Your WoolyPooly wallet address                 |
-   | `PAYOUT_THRESHOLD` | Minimum payout threshold for progress tracking |
+   | Variable      | Description                                     |
+   | ------------- | ----------------------------------------------- |
+   | `SERVER_PORT` | Port to serve the dashboard on (default `4070`) |
+   | `WALLET`      | Your WoolyPooly wallet address                  |
 
 3. **Sync and start**
 

@@ -152,16 +152,17 @@ function processMetrics(rawData, coinId, wallet, estimate) {
     : [];
 
   const minPayFromApi = pool.minPay;
-  const configuredThreshold = (rawData.payoutThreshold != null && isFinite(rawData.payoutThreshold) && rawData.payoutThreshold > 0)
-    ? rawData.payoutThreshold
+  const walletActionsData = rawData.walletActions && rawData.walletActions.data;
+  const walletMinPay = (walletActionsData && typeof walletActionsData.minPay === 'number' && walletActionsData.minPay > 0)
+    ? walletActionsData.minPay
     : null;
   let minPay = null;
-  if (minPayFromApi != null && configuredThreshold != null) {
-    minPay = Math.max(minPayFromApi, configuredThreshold);
+  if (minPayFromApi != null && walletMinPay != null) {
+    minPay = Math.max(minPayFromApi, walletMinPay);
+  } else if (walletMinPay != null) {
+    minPay = walletMinPay;
   } else if (minPayFromApi != null) {
     minPay = minPayFromApi;
-  } else if (configuredThreshold != null) {
-    minPay = configuredThreshold;
   }
   const ratePerHour = estAvail && estHour > 0 ? estHour : null;
   const remaining = minPay != null ? Math.max(0, minPay - balance) : null;
@@ -228,6 +229,7 @@ function processMetrics(rawData, coinId, wallet, estimate) {
     },
     payout: {
       threshold: minPay,
+      walletMinPay,
       remaining,
       ratePerHour,
     },

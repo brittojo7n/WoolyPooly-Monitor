@@ -1,6 +1,7 @@
 const constants = require('../utils/constants');
 
 const priceCache = {};
+const actionsCache = {};
 
 async function fetchJson(endpointUrl) {
   const controller = new AbortController();
@@ -52,6 +53,24 @@ async function fetchAccountStats(poolId, wallet) {
   return await fetchJson(`${constants.WOOLYPOOLY_API_BASE}/${poolId}/accounts/${wallet}`);
 }
 
+async function fetchAccountActions(poolId, wallet) {
+  const key = String(poolId) + '|' + String(wallet).toLowerCase();
+  const now = Date.now();
+  if (actionsCache[key] && (now - actionsCache[key].timestamp < 300000)) {
+    return actionsCache[key].data;
+  }
+  try {
+    const data = await fetchJson(`${constants.WOOLYPOOLY_API_BASE}/${poolId}/accounts/${wallet}/actions`);
+    if (data && data.data && typeof data.data.minPay === 'number') {
+      actionsCache[key] = { data, timestamp: now };
+    }
+    return data;
+  } catch (err) {
+    if (actionsCache[key]) return actionsCache[key].data;
+    return null;
+  }
+}
+
 async function detectPoolForWallet(wallet) {
   const cleanWallet = String(wallet || '').trim();
   if (!cleanWallet) return 'vtc-1';
@@ -79,5 +98,6 @@ module.exports = {
   getCoinUsdPrice,
   fetchPoolStats,
   fetchAccountStats,
+  fetchAccountActions,
   detectPoolForWallet
 };

@@ -47,7 +47,7 @@ function getFeed(coin, wallet) {
 }
 
 async function fetchSnapshot(coin, wallet) {
-  const [usdPrice, poolResult, accountResult] = await Promise.all([
+  const [usdPrice, poolResult, accountResult, walletActions] = await Promise.all([
     woolypooly.getCoinUsdPrice(coin),
     woolypooly.fetchPoolStats(coin).then(
       data => (data && typeof data === 'object' ? { ok: true, data } : { ok: false }),
@@ -56,9 +56,10 @@ async function fetchSnapshot(coin, wallet) {
     woolypooly.fetchAccountStats(coin, wallet).then(
       data => (data && data.stats ? { ok: true, data } : { ok: false }),
       () => ({ ok: false })
-    )
+    ),
+    woolypooly.fetchAccountActions(coin, wallet).catch(() => null)
   ]);
-  return { usdPrice, poolResult, accountResult };
+  return { usdPrice, poolResult, accountResult, walletActions };
 }
 
 function estimateDay(accountStats, now) {
@@ -96,7 +97,7 @@ function processFeedSnapshot(snapshot, coin, wallet) {
       poolOk,
       accountOk,
       snapshotAt: now,
-      payoutThreshold: config.PAYOUT_THRESHOLD
+      walletActions: snapshot.walletActions || null
     },
     coin,
     wallet,

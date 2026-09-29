@@ -26,13 +26,6 @@ function normalizeCoin(coin) {
   return constants.COIN_ALIASES[key] || (constants.COIN_IDS.includes(key) ? key : null);
 }
 
-function parsePayoutThreshold(raw) {
-  const s = String(raw == null ? '' : raw).trim();
-  if (!s) return 1;
-  const n = Number(s);
-  return (Number.isFinite(n) && n > 0) ? n : 1;
-}
-
 loadEnv();
 
 const PORT = Number(process.env.SERVER_PORT);
@@ -47,12 +40,9 @@ if (!DEFAULT_WALLET) {
   process.exit(1);
 }
 
-const PAYOUT_THRESHOLD = parsePayoutThreshold(process.env.PAYOUT_THRESHOLD);
-
 module.exports = {
   PORT,
   DEFAULT_WALLET,
-  PAYOUT_THRESHOLD,
   REFRESH_INTERVAL_MS: constants.REFRESH_INTERVAL_MS,
   normalizeCoin
 };
