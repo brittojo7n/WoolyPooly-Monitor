@@ -221,12 +221,25 @@ function drawCanvasChart() {
   }
 
   for (var bi = 0; bi < count; bi++) {
+    var item = state.graphData[bi];
+    var isPartial = item && item.status === 'partial';
     var val = amounts[bi];
     var barH = maxVal > 0 ? (val / maxVal) * h : 0;
     var bx = padding.left + bi * slotW + (slotW - barW) / 2;
     var by = padding.top + h - barH;
 
-    if (barH > 0) {
+    if (isPartial) {
+      // Current growing bar: dotted outlined rectangle, not filled
+      var outlineColor = (bi === state.hoveredIndex) ? '#3b82f6' : '#10b981';
+      var minOutlineH = Math.max(barH, 6); // always show at least a sliver so it's visible
+      var outlineY = padding.top + h - minOutlineH;
+      ctx.save();
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(bx + 0.75, outlineY + 0.75, barW - 1.5, minOutlineH - 1.5);
+      ctx.restore();
+    } else if (barH > 0) {
       ctx.fillStyle = (bi === state.hoveredIndex) ? '#3b82f6' : '#10b981';
       ctx.fillRect(bx, by, barW, barH);
     }
