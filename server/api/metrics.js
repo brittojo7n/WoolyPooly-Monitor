@@ -77,7 +77,14 @@ function extractPool(poolStats, hasPool) {
   const pplns = (Array.isArray(s.modes) ? s.modes : []).find(m => String(m.payoutScheme).toUpperCase() === 'PPLNS')
     || (Array.isArray(s.modes) ? s.modes[0] : undefined) || {};
   const algo = (pplns.algo_stats && (pplns.algo_stats.default || Object.values(pplns.algo_stats)[0])) || {};
-  const pick = (v) => (typeof v === 'number' && isFinite(v)) ? v : null;
+  const pick = (v) => {
+    if (typeof v === 'number' && isFinite(v)) return v;
+    if (typeof v === 'string') {
+      const n = parseFloat(v);
+      return isFinite(n) ? n : null;
+    }
+    return null;
+  };
   return {
     minPay: pick(s.minPay),
     difficulty: pick(s.difficulty),
@@ -153,8 +160,15 @@ function processMetrics(rawData, coinId, wallet, estimate) {
 
   const minPayFromApi = pool.minPay;
   const walletActionsData = rawData.walletActions && rawData.walletActions.data;
-  const walletMinPay = (walletActionsData && typeof walletActionsData.minPay === 'number' && walletActionsData.minPay > 0)
-    ? walletActionsData.minPay
+  const parsedWalletMinPay = (walletActionsData && walletActionsData.minPay != null)
+    ? (typeof walletActionsData.minPay === 'number' && isFinite(walletActionsData.minPay)
+      ? walletActionsData.minPay
+      : (typeof walletActionsData.minPay === 'string' && isFinite(parseFloat(walletActionsData.minPay))
+        ? parseFloat(walletActionsData.minPay)
+        : null))
+    : null;
+  const walletMinPay = (parsedWalletMinPay != null && parsedWalletMinPay > 0)
+    ? parsedWalletMinPay
     : null;
   let minPay = null;
   if (minPayFromApi != null && walletMinPay != null) {

@@ -55,14 +55,10 @@ async function fetchAccountStats(poolId, wallet) {
 
 async function fetchAccountActions(poolId, wallet) {
   const key = String(poolId) + '|' + String(wallet).toLowerCase();
-  const now = Date.now();
-  if (actionsCache[key] && (now - actionsCache[key].timestamp < 300000)) {
-    return actionsCache[key].data;
-  }
   try {
     const data = await fetchJson(`${constants.WOOLYPOOLY_API_BASE}/${poolId}/accounts/${wallet}/actions`);
-    if (data && data.data && typeof data.data.minPay === 'number') {
-      actionsCache[key] = { data, timestamp: now };
+    if (data && data.data) {
+      actionsCache[key] = { data };
     }
     return data;
   } catch (err) {

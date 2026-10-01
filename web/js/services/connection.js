@@ -24,4 +24,4 @@ function fetchDataOnce() {
     });
 }
 
-export { reconnectStream, fetchDataOnce };
+export { reconnectStream };

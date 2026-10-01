@@ -25,4 +25,4 @@ function renderWorkersTable() {
   renderPagedRows(state.workers, 'workersTableBody', 4, 'No workers', workerRow);
 }
 
-export { renderWorkersTable, workerRow };
+export { renderWorkersTable };

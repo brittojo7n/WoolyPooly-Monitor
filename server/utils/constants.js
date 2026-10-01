@@ -29,7 +29,6 @@ const REFRESH_INTERVAL_MS = 20000;
 const REQUEST_TIMEOUT_MS = 6000;
 
 module.exports = {
-  COINS,
   COIN_IDS,
   COIN_ALIASES,
   COIN_GECKO_MAP,

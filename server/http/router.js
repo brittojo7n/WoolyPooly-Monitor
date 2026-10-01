@@ -203,7 +203,7 @@ function sendJson(res, statusCode, obj) {
 async function handleDebugWoolypooly(req, res, searchParams) {
   try {
     const { coin, wallet } = await resolveRequestConfig(searchParams);
-    const [usdPrice, poolResult, accountResult] = await Promise.all([
+    const [usdPrice, poolResult, accountResult, walletActions] = await Promise.all([
       woolypooly.getCoinUsdPrice(coin),
       woolypooly.fetchPoolStats(coin).then(
         data => ({ ok: true, data }),
@@ -211,6 +211,10 @@ async function handleDebugWoolypooly(req, res, searchParams) {
       ),
       woolypooly.fetchAccountStats(coin, wallet).then(
         data => ({ ok: true, data }),
+        err => ({ ok: false, error: err.message })
+      ),
+      woolypooly.fetchAccountActions(coin, wallet).then(
+        data => ({ ok: !!data, data }),
         err => ({ ok: false, error: err.message })
       )
     ]);
@@ -223,6 +227,11 @@ async function handleDebugWoolypooly(req, res, searchParams) {
         ok: accountResult.ok,
         error: accountResult.ok ? null : accountResult.error,
         raw: accountResult.ok ? deepRedact(accountResult.data, wallet) : null
+      },
+      actions: {
+        ok: walletActions.ok,
+        error: walletActions.ok ? null : walletActions.error,
+        raw: walletActions.ok ? walletActions.data : null
       }
     });
   } catch (err) {
@@ -289,13 +298,13 @@ function handleRequest(req, res) {
   if (pathname === '/' || pathname === '/index.html') {
     const clientIp = limiter.getClientIp(req);
     const limit = limiter.checkRateLimit(clientIp);
+    const servePage = () => sendBuffer(res, 200, 'text/html; charset=utf-8', Buffer.from(ui.renderHtmlPage(config)));
+    
     if (!limit.allowed) {
-      setTimeout(() => {
-        sendBuffer(res, 200, 'text/html; charset=utf-8', Buffer.from(ui.renderHtmlPage(config)));
-      }, limit.waitMs);
-      return;
+      setTimeout(servePage, limit.waitMs);
+    } else {
+      servePage();
     }
-    sendBuffer(res, 200, 'text/html; charset=utf-8', Buffer.from(ui.renderHtmlPage(config)));
     return;
   }
 
@@ -304,31 +313,22 @@ function handleRequest(req, res) {
   if (pathname === '/api/stats') {
     const clientIp = limiter.getClientIp(req);
     const limit = limiter.checkRateLimit(clientIp);
-    if (!limit.allowed) {
-      setTimeout(() => {
-        resolveRequestConfig(searchParams)
-          .then(requestConfig => getMetrics(requestConfig.coin, requestConfig.wallet))
-          .then(data => {
-            sendBuffer(res, 200, 'application/json', Buffer.from(JSON.stringify(data)), {
-              'Access-Control-Allow-Origin': '*'
-            });
-          })
-          .catch(err => {
-            sendError(res, err);
+    const serveStats = () => {
+      resolveRequestConfig(searchParams)
+        .then(requestConfig => getMetrics(requestConfig.coin, requestConfig.wallet))
+        .then(data => {
+          sendBuffer(res, 200, 'application/json', Buffer.from(JSON.stringify(data)), {
+            'Access-Control-Allow-Origin': '*'
           });
-      }, limit.waitMs);
-      return;
+        })
+        .catch(err => sendError(res, err));
+    };
+
+    if (!limit.allowed) {
+      setTimeout(serveStats, limit.waitMs);
+    } else {
+      serveStats();
     }
-    resolveRequestConfig(searchParams)
-      .then(requestConfig => getMetrics(requestConfig.coin, requestConfig.wallet))
-      .then(data => {
-        sendBuffer(res, 200, 'application/json', Buffer.from(JSON.stringify(data)), {
-          'Access-Control-Allow-Origin': '*'
-        });
-      })
-      .catch(err => {
-        sendError(res, err);
-      });
     return;
   }
 

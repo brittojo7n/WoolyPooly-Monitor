@@ -109,4 +109,4 @@ function renderPaymentsTable() {
   renderPagedRows(state.payments, 'paymentsTableBody', 3, 'No payments', paymentRow);
 }
 
-export { initPayments, renderPaymentsTable, paymentRow };
+export { initPayments, renderPaymentsTable };

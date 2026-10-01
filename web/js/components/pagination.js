@@ -114,4 +114,4 @@ function buildPagination(boxId, pageState, renderFn) {
   box.appendChild(right);
 }
 
-export { buildPagination, clampPages, renderPagedRows };
+export { buildPagination, renderPagedRows };

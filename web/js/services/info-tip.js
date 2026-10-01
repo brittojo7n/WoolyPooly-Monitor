@@ -245,4 +245,4 @@ function initInfoTips() {
   }
 }
 
-export { initInfoTips, clearTipTimer, hideInfoTip, isTextTruncated };
+export { initInfoTips, clearTipTimer, hideInfoTip };
